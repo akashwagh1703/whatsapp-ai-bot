@@ -11,6 +11,7 @@ export const NAV_ITEMS = [
   { href: "/contacts", label: "Contacts", icon: "Users" },
   { href: "/analytics", label: "Analytics", icon: "BarChart3" },
   { href: "/integrations", label: "Integrations", icon: "Plug" },
+  { href: "/webhook-test", label: "Webhook test", icon: "FlaskConical" },
   { href: "/settings", label: "Settings", icon: "Settings" },
 ] as const;
 

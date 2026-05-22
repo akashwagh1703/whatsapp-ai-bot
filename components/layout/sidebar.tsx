@@ -15,6 +15,7 @@ import {
   X,
   Zap,
   MessageCircle,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME, NAV_ITEMS } from "@/constants";
@@ -30,6 +31,7 @@ const ICONS = {
   Users,
   BarChart3,
   Plug,
+  FlaskConical,
   Settings,
 } as const;
 
