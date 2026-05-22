@@ -114,3 +114,19 @@ export function parseIncomingWebhook(body: {
 
   return messages;
 }
+
+/** For debugging: what Meta sent when inbox stays empty. */
+export function summarizeWebhookPayload(body: {
+  entry?: Array<{ changes?: Array<{ field?: string; value?: unknown }> }>;
+}) {
+  const fields: string[] = [];
+  let messageCount = 0;
+  for (const entry of body.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      if (change.field) fields.push(change.field);
+      const value = change.value as { messages?: unknown[] } | undefined;
+      messageCount += value?.messages?.length ?? 0;
+    }
+  }
+  return { fields: fields.join(", ") || "none", messageCount };
+}

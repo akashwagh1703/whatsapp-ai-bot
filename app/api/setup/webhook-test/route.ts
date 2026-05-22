@@ -11,6 +11,7 @@ import {
   isWhatsAppEnvConfigured,
 } from "@/lib/whatsapp-env";
 import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
+import { createServiceClient } from "@/lib/supabase/server";
 
 const schema = z.discriminatedUnion("action", [
   z.object({
@@ -68,6 +69,19 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let recentWebhooks: unknown[] = [];
+  try {
+    const service = await createServiceClient();
+    const { data } = await service
+      .from("webhook_events")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(8);
+    recentWebhooks = data ?? [];
+  } catch {
+    recentWebhooks = [];
+  }
+
   return NextResponse.json({
     webhookUrl: getWebhookUrl(),
     expectedVerifyToken: getWhatsAppVerifyToken(),
@@ -78,6 +92,7 @@ export async function GET() {
       phoneId: !!getWhatsAppPhoneId(),
       waToken: !!getWhatsAppAccessToken(),
     },
+    recentWebhooks,
   });
 }
 

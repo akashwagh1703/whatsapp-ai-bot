@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
-import { verifyWebhook } from "@/services/whatsapp.service";
+import {
+  summarizeWebhookPayload,
+  verifyWebhook,
+} from "@/services/whatsapp.service";
 import { rateLimit } from "@/lib/rate-limit";
 import { getWhatsAppVerifyToken } from "@/lib/whatsapp-env";
 import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
+import { createServiceClient } from "@/lib/supabase/server";
+import { logWebhookEvent } from "@/lib/webhook-log";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -29,7 +34,19 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+  const summary = summarizeWebhookPayload(body);
   const result = await processWhatsAppWebhook(body);
+
+  try {
+    const supabase = await createServiceClient();
+    await logWebhookEvent(supabase, {
+      fields: summary.fields,
+      messagesCount: summary.messageCount,
+      result,
+    });
+  } catch {
+    // ignore logging failures
+  }
 
   if (result.warning === "no_messages_in_payload") {
     console.warn(

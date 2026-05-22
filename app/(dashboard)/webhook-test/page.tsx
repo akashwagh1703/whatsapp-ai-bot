@@ -18,6 +18,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
 import { cn } from "@/lib/utils";
 
+interface WebhookEvent {
+  created_at: string;
+  fields: string | null;
+  messages_count: number;
+  warning: string | null;
+  first_result: string | null;
+}
+
 interface WebhookMeta {
   webhookUrl: string;
   expectedVerifyToken: string;
@@ -28,6 +36,7 @@ interface WebhookMeta {
     phoneId: boolean;
     waToken: boolean;
   };
+  recentWebhooks?: WebhookEvent[];
 }
 
 export default function WebhookTestPage() {
@@ -120,6 +129,49 @@ export default function WebhookTestPage() {
           )}
         </CardContent>
       </Card>
+
+      {meta?.recentWebhooks && meta.recentWebhooks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Meta webhook calls</CardTitle>
+            <CardDescription>
+              If empty after you message WhatsApp, Meta is not reaching your server.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {meta.recentWebhooks.map((ev, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+              >
+                <p className="font-mono text-xs text-slate-500">
+                  {new Date(ev.created_at).toLocaleString()}
+                </p>
+                <p>
+                  Fields: <strong>{ev.fields ?? "—"}</strong> · Messages:{" "}
+                  <strong>{ev.messages_count}</strong>
+                </p>
+                {ev.warning && (
+                  <p className="text-amber-700">Warning: {ev.warning}</p>
+                )}
+                {ev.first_result && (
+                  <p className="text-slate-600">{ev.first_result}</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {meta?.recentWebhooks?.length === 0 && (
+        <Card className="border-amber-200 bg-amber-50/40">
+          <CardContent className="py-4 text-sm text-amber-900">
+            No Meta webhook calls logged yet. Run SQL for{" "}
+            <code className="text-xs">webhook_events</code> table in Supabase, then
+            message your WhatsApp number and refresh this page.
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

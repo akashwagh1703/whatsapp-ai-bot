@@ -124,6 +124,16 @@ create table if not exists public.notifications (
 
 create index if not exists notifications_business_idx on public.notifications(business_id, created_at desc);
 
+-- Debug: last Meta webhook calls (run schema if missing)
+create table if not exists public.webhook_events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  fields text,
+  messages_count int not null default 0,
+  warning text,
+  first_result text
+);
+
 -- Updated_at trigger
 create or replace function public.set_updated_at()
 returns trigger as $$
