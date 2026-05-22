@@ -322,6 +322,25 @@ export default function InboxPage() {
                   {selected.status}
                 </dd>
               </div>
+              {!selected.ai_enabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={async () => {
+                    const supabase = createClient();
+                    await supabase
+                      .from("conversations")
+                      .update({ ai_enabled: true, status: "open" })
+                      .eq("id", selected.id);
+                    queryClient.invalidateQueries({
+                      queryKey: ["conversations"],
+                    });
+                  }}
+                >
+                  Turn AI back on
+                </Button>
+              )}
               <div>
                 <dt className="text-slate-400">Notes</dt>
                 <dd className="text-slate-600">

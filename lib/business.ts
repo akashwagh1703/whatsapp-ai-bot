@@ -1,4 +1,28 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AiSettings } from "@/types";
+
+/** Guarantees ai_settings row exists (enabled by default in schema). */
+export async function ensureAiSettings(
+  supabase: SupabaseClient,
+  businessId: string
+): Promise<AiSettings> {
+  const { data: existing } = await supabase
+    .from("ai_settings")
+    .select("*")
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (existing) return existing as AiSettings;
+
+  const { data: created, error } = await supabase
+    .from("ai_settings")
+    .insert({ business_id: businessId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return created as AiSettings;
+}
 
 export async function getOrCreateBusiness(supabase: SupabaseClient, userId: string) {
   const { data: existing } = await supabase

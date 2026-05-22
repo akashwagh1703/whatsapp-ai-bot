@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { ensureAiSettings } from "@/lib/business";
 import { resolveAiModel } from "@/lib/ai-model";
 import { getOpenRouterApiKey } from "@/lib/openrouter-env";
 import {
@@ -20,6 +21,10 @@ import {
   parseIncomingWebhook,
   sendWhatsAppText,
 } from "@/services/whatsapp.service";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const HANDOFF_REPLY =
+  "Thanks for your message. A team member will assist you shortly.";
 
 export interface WebhookMessageResult {
   from: string;
@@ -27,8 +32,9 @@ export interface WebhookMessageResult {
   content: string | null;
   conversationId?: string;
   replySent: boolean;
+  replySaved: boolean;
   replyPreview?: string;
-  replySource?: "keyword" | "welcome" | "ai" | "fallback" | "none";
+  replySource?: "keyword" | "welcome" | "ai" | "fallback" | "handoff" | "none";
   skippedReason?: string;
   error?: string;
 }
@@ -37,6 +43,7 @@ export interface WebhookProcessResult {
   ok: boolean;
   messagesParsed: number;
   warning?: string;
+  error?: string;
   results: WebhookMessageResult[];
   env: {
     hasPhoneId: boolean;
@@ -44,6 +51,55 @@ export interface WebhookProcessResult {
     hasOpenRouter: boolean;
     aiEnabled: boolean;
   };
+}
+
+async function deliverReply(
+  supabase: SupabaseClient,
+  params: {
+    businessId: string;
+    conversationId: string;
+    to: string;
+    replyText: string;
+    replySource: WebhookMessageResult["replySource"];
+    phoneId: string;
+    token: string;
+    isAi: boolean;
+  }
+): Promise<{ sent: boolean; error?: string }> {
+  await saveMessage(supabase, {
+    conversationId: params.conversationId,
+    direction: "outbound",
+    content: params.replyText,
+    isAi: params.isAi,
+  });
+
+  await bumpAnalytics(
+    supabase,
+    params.businessId,
+    params.isAi ? "ai_replies" : "human_replies"
+  );
+
+  if (!params.phoneId || !params.token) {
+    return {
+      sent: false,
+      error: "missing WHATSAPP_PHONE_ID or WHATSAPP_TOKEN in env",
+    };
+  }
+
+  try {
+    await sendWhatsAppText({
+      phoneId: params.phoneId,
+      token: params.token,
+      to: params.to,
+      text: params.replyText,
+    });
+    return { sent: true };
+  } catch (e) {
+    return {
+      sent: false,
+      error: e instanceof Error ? e.message : "WhatsApp send failed",
+    };
+  }
 }
 
 export async function processWhatsAppWebhook(
@@ -70,7 +126,22 @@ export async function processWhatsAppWebhook(
     };
   }
 
-  const supabase = await createServiceClient();
+  let supabase;
+  try {
+    supabase = await createServiceClient();
+  } catch (e) {
+    return {
+      ok: false,
+      messagesParsed: incoming.length,
+      error:
+        e instanceof Error
+          ? e.message
+          : "Supabase service client failed — check SUPABASE_SERVICE_ROLE_KEY",
+      results: [],
+      env,
+    };
+  }
+
   const { data: businesses } = await supabase.from("businesses").select("id");
 
   if (!businesses?.length) {
@@ -85,13 +156,20 @@ export async function processWhatsAppWebhook(
 
   const businessId = businesses[0].id as string;
 
-  const { data: aiSettings } = await supabase
-    .from("ai_settings")
-    .select("*")
-    .eq("business_id", businessId)
-    .maybeSingle();
+  let aiSettings;
+  try {
+    aiSettings = await ensureAiSettings(supabase, businessId);
+  } catch (e) {
+    return {
+      ok: false,
+      messagesParsed: incoming.length,
+      error: e instanceof Error ? e.message : "Failed to load AI settings",
+      results: [],
+      env,
+    };
+  }
 
-  env.aiEnabled = !!aiSettings?.enabled;
+  env.aiEnabled = !!aiSettings.enabled;
 
   const { data: automations } = await supabase
     .from("automations")
@@ -117,6 +195,7 @@ export async function processWhatsAppWebhook(
       contactName: msg.contactName,
       content: msg.content,
       replySent: false,
+      replySaved: false,
       replySource: "none",
     };
 
@@ -186,13 +265,16 @@ export async function processWhatsAppWebhook(
           body: `${msg.contactName} needs a team member.`,
         });
 
-        item.skippedReason = "human_handoff";
+        if (!replyText) {
+          replyText = HANDOFF_REPLY;
+          replySource = "handoff";
+        }
       } else if (
         !replyText &&
-        aiSettings?.enabled &&
+        aiSettings.enabled &&
         conversation.ai_enabled &&
         openRouterKey &&
-        msg.content
+        msg.content?.trim()
       ) {
         const systemPrompt = buildSystemPrompt(aiSettings);
         const model = resolveAiModel(aiSettings.model);
@@ -204,13 +286,22 @@ export async function processWhatsAppWebhook(
           .order("created_at", { ascending: true })
           .limit(10);
 
-        const chatHistory =
+        let chatHistory =
           history?.map((m) => ({
             role: (m.direction === "inbound" ? "user" : "assistant") as
               | "user"
               | "assistant",
             content: m.content ?? "",
           })) ?? [];
+
+        const last = chatHistory[chatHistory.length - 1];
+        if (
+          last?.role === "user" &&
+          last.content === msg.content &&
+          chatHistory.length > 0
+        ) {
+          chatHistory = chatHistory.slice(0, -1);
+        }
 
         try {
           replyText = await generateAiReply(
@@ -222,6 +313,7 @@ export async function processWhatsAppWebhook(
           );
           replySource = "ai";
         } catch (e) {
+          console.error("[webhook] AI error:", e);
           replyText =
             "Thanks for reaching out! A team member will follow up shortly.";
           replySource = "fallback";
@@ -229,47 +321,37 @@ export async function processWhatsAppWebhook(
         }
       } else if (!replyText) {
         const reasons: string[] = [];
-        if (!aiSettings?.enabled) reasons.push("AI disabled");
-        if (!conversation.ai_enabled) reasons.push("conversation AI off");
-        if (!openRouterKey) reasons.push("missing OPENROUTER_API_KEY");
-        if (!msg.content) reasons.push("no text content");
+        if (!aiSettings.enabled) reasons.push("AI disabled in AI Bot settings");
+        if (!conversation.ai_enabled)
+          reasons.push("conversation in Human mode (re-enable in Inbox)");
+        if (!openRouterKey) reasons.push("missing OPENROUTER_API_KEY in env");
+        if (!msg.content?.trim()) reasons.push("no text content");
         item.skippedReason = reasons.join(", ") || "no_reply_rule_matched";
       }
 
-      if (replyText && phoneId && token) {
-        try {
-          await sendWhatsAppText({
-            phoneId,
-            token,
-            to: msg.from,
-            text: replyText,
-          });
-
-          await saveMessage(supabase, {
-            conversationId: conversation.id,
-            direction: "outbound",
-            content: replyText,
-            isAi: replySource === "ai",
-          });
-
-          await bumpAnalytics(
-            supabase,
-            businessId,
-            replySource === "ai" ? "ai_replies" : "human_replies"
-          );
-
-          item.replySent = true;
-          item.replyPreview = replyText.slice(0, 200);
-          item.replySource = replySource;
-        } catch (e) {
-          item.error = e instanceof Error ? e.message : "WhatsApp send failed";
-        }
-      } else if (replyText && (!phoneId || !token)) {
-        item.skippedReason = "missing WHATSAPP_PHONE_ID or WHATSAPP_TOKEN";
+      if (replyText) {
+        const delivery = await deliverReply(supabase, {
+          businessId,
+          conversationId: conversation.id,
+          to: msg.from,
+          replyText,
+          replySource,
+          phoneId,
+          token,
+          isAi: replySource === "ai",
+        });
+        item.replySaved = true;
         item.replyPreview = replyText.slice(0, 200);
+        item.replySource = replySource;
+        item.replySent = delivery.sent;
+        if (delivery.error) {
+          item.error = delivery.error;
+          console.error("[webhook] WhatsApp send failed:", delivery.error);
+        }
       }
     } catch (e) {
       item.error = e instanceof Error ? e.message : "Processing failed";
+      console.error("[webhook] Message processing error:", e);
     }
 
     results.push(item);
