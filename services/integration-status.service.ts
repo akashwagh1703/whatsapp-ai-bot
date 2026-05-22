@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWebhookUrl } from "@/lib/app-url";
 import { getDefaultAiModel } from "@/lib/ai-model";
+import { isOpenRouterEnvConfigured } from "@/lib/openrouter-env";
 import {
   getWhatsAppVerifyToken,
   hasCustomVerifyToken,
@@ -29,6 +30,7 @@ export interface IntegrationStatus {
   verifyTokenConfigured: boolean;
   verifyTokenUsesDefault: boolean;
   whatsappEnvVars: string[];
+  openrouterEnvVars: string[];
   defaultModel: string;
   steps: SetupStep[];
 }
@@ -37,25 +39,15 @@ export async function getIntegrationStatus(
   supabase: SupabaseClient,
   businessId: string
 ): Promise<IntegrationStatus> {
-  const [{ data: app }, { data: ai }] = await Promise.all([
-    supabase
-      .from("app_settings")
-      .select("openrouter_api_key")
-      .eq("business_id", businessId)
-      .maybeSingle(),
-    supabase
-      .from("ai_settings")
-      .select("enabled, model")
-      .eq("business_id", businessId)
-      .maybeSingle(),
-  ]);
+  const { data: ai } = await supabase
+    .from("ai_settings")
+    .select("enabled, model")
+    .eq("business_id", businessId)
+    .maybeSingle();
 
   const whatsappOk = isWhatsAppEnvConfigured();
-  const openRouterKey =
-    app?.openrouter_api_key?.trim() || process.env.OPENROUTER_API_KEY?.trim();
-  const openRouterOk = !!openRouterKey;
+  const openRouterOk = isOpenRouterEnvConfigured();
   const aiOk = !!ai?.enabled;
-  const webhookOk = true;
 
   const steps: SetupStep[] = [
     {
@@ -70,18 +62,18 @@ export async function getIntegrationStatus(
       id: "whatsapp",
       label: "WhatsApp env vars",
       description:
-        "WHATSAPP_PHONE_ID and WHATSAPP_TOKEN in Vercel / .env.local (not in dashboard).",
+        "WHATSAPP_PHONE_ID and WHATSAPP_TOKEN in .env.local / Vercel Production.",
       ok: whatsappOk,
       actionHref: "/settings",
-      actionLabel: "View env variable names",
+      actionLabel: "Check env status",
     },
     {
       id: "openrouter",
-      label: "OpenRouter (AI)",
-      description: "OPENROUTER_API_KEY in env or optional key in Settings → AI.",
+      label: "OpenRouter env var",
+      description: "OPENROUTER_API_KEY in .env.local / Vercel Production only.",
       ok: openRouterOk,
       actionHref: "/settings",
-      actionLabel: "Add OpenRouter key",
+      actionLabel: "Check env status",
     },
     {
       id: "ai_bot",
@@ -95,8 +87,8 @@ export async function getIntegrationStatus(
       id: "meta_webhook",
       label: "Meta webhook",
       description:
-        "Callback URL + WHATSAPP_VERIFY_TOKEN in Meta (default: flowchat-verify if unset).",
-      ok: webhookOk,
+        "Callback URL + verify token in Meta (WHATSAPP_VERIFY_TOKEN or flowchat-verify).",
+      ok: true,
       actionHref: "/integrations#meta-webhook",
       actionLabel: "Copy webhook details",
     },
@@ -112,6 +104,7 @@ export async function getIntegrationStatus(
       "WHATSAPP_TOKEN",
       "WHATSAPP_VERIFY_TOKEN",
     ],
+    openrouterEnvVars: ["OPENROUTER_API_KEY", "OPENROUTER_DEFAULT_MODEL"],
     defaultModel: getDefaultAiModel(),
     steps,
   };

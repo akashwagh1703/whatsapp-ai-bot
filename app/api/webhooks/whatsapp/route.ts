@@ -23,6 +23,7 @@ import {
   getWhatsAppPhoneId,
   getWhatsAppVerifyToken,
 } from "@/lib/whatsapp-env";
+import { getOpenRouterApiKey } from "@/lib/openrouter-env";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -64,12 +65,6 @@ export async function POST(request: Request) {
 
   const businessId = businesses[0].id as string;
 
-  const { data: appSettings } = await supabase
-    .from("app_settings")
-    .select("*")
-    .eq("business_id", businessId)
-    .maybeSingle();
-
   const { data: aiSettings } = await supabase
     .from("ai_settings")
     .select("*")
@@ -90,8 +85,7 @@ export async function POST(request: Request) {
 
   const phoneId = getWhatsAppPhoneId();
   const token = getWhatsAppAccessToken();
-  const openRouterKey =
-    appSettings?.openrouter_api_key || process.env.OPENROUTER_API_KEY;
+  const openRouterKey = getOpenRouterApiKey();
 
   for (const msg of incoming) {
     const { conversation } = await upsertContactAndConversation(
@@ -168,10 +162,7 @@ export async function POST(request: Request) {
       msg.content
     ) {
       const systemPrompt = buildSystemPrompt(aiSettings);
-      const model = resolveAiModel(
-        aiSettings.model,
-        appSettings?.openrouter_model
-      );
+      const model = resolveAiModel(aiSettings.model);
 
       const { data: history } = await supabase
         .from("messages")

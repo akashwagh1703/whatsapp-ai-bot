@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getDefaultAiModel } from "@/lib/ai-model";
+import {
+  getOpenRouterApiKey,
+  isOpenRouterEnvConfigured,
+} from "@/lib/openrouter-env";
 import {
   getWhatsAppAccessToken,
   getWhatsAppPhoneId,
@@ -25,12 +30,17 @@ export async function GET() {
   }
 
   const phoneId = getWhatsAppPhoneId();
-  const token = getWhatsAppAccessToken();
+  const waToken = getWhatsAppAccessToken();
   const verifyToken = getWhatsAppVerifyToken();
+  const openRouterKey = getOpenRouterApiKey();
 
   return NextResponse.json({
-    deploymentNote:
-      "Values are read on the server from Vercel Production env at runtime. Development-only env vars do not apply to wa-bot-portal.vercel.app.",
+    source: "process.env on server (not database)",
+    hints: [
+      "Local: values from .env.local — restart npm run dev after changes.",
+      "Live: values from Vercel Production env — must Redeploy after changes.",
+      "Vercel Development environment does NOT apply to wa-bot-portal.vercel.app.",
+    ],
     whatsapp: {
       phoneId: {
         configured: !!phoneId,
@@ -38,8 +48,8 @@ export async function GET() {
         envKey: "WHATSAPP_PHONE_ID",
       },
       accessToken: {
-        configured: !!token,
-        preview: token ? "•••• (set)" : "",
+        configured: !!waToken,
+        preview: waToken ? "•••• (set)" : "",
         envKey: "WHATSAPP_TOKEN",
       },
       verifyToken: {
@@ -54,11 +64,18 @@ export async function GET() {
     },
     openrouter: {
       apiKey: {
-        configured: !!process.env.OPENROUTER_API_KEY?.trim(),
+        configured: isOpenRouterEnvConfigured(),
+        preview: openRouterKey ? "•••• (set)" : "",
         envKey: "OPENROUTER_API_KEY",
       },
-      defaultModel: process.env.OPENROUTER_DEFAULT_MODEL?.trim() || "(fallback in app)",
+      defaultModel: {
+        value: getDefaultAiModel(),
+        envKey: "OPENROUTER_DEFAULT_MODEL",
+      },
+      ready: isOpenRouterEnvConfigured(),
     },
     appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || "(not set)",
+    readyForAutoReply:
+      isWhatsAppEnvConfigured() && isOpenRouterEnvConfigured(),
   });
 }

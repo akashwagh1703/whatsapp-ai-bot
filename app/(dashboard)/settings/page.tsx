@@ -6,10 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AI_MODELS, DEFAULT_AI_MODEL } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
-import { WhatsAppEnvStatus } from "@/components/settings/whatsapp-env-status";
+import { EnvCredentialsStatus } from "@/components/settings/env-credentials-status";
 
 export default function SettingsPage() {
   const [business, setBusiness] = useState({
@@ -17,10 +16,6 @@ export default function SettingsPage() {
     email: "",
     phone: "",
     logo_url: "",
-  });
-  const [api, setApi] = useState({
-    openrouter_api_key: "",
-    openrouter_model: DEFAULT_AI_MODEL,
   });
   const [saving, setSaving] = useState(false);
 
@@ -35,18 +30,6 @@ export default function SettingsPage() {
           phone: biz.phone ?? "",
           logo_url: biz.logo_url ?? "",
         });
-        const { data: app } = await supabase
-          .from("app_settings")
-          .select("openrouter_api_key, openrouter_model")
-          .eq("business_id", biz.id)
-          .maybeSingle();
-        if (app) {
-          setApi({
-            openrouter_api_key: app.openrouter_api_key ?? "",
-            openrouter_model:
-              app.openrouter_model?.trim() || DEFAULT_AI_MODEL,
-          });
-        }
       }
     }
     load();
@@ -69,35 +52,52 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
-  async function saveAiSettings() {
-    setSaving(true);
-    const supabase = createClient();
-    const { data: biz } = await supabase.from("businesses").select("id").maybeSingle();
-    if (!biz) return;
-    await supabase.from("app_settings").upsert({
-      business_id: biz.id,
-      openrouter_api_key: api.openrouter_api_key || null,
-      openrouter_model: api.openrouter_model || null,
-      updated_at: new Date().toISOString(),
-    });
-    setSaving(false);
-  }
-
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="mt-1 text-slate-500">
-          Business profile and AI keys. WhatsApp uses environment variables only.
+          Business profile here. WhatsApp & OpenRouter use{" "}
+          <code className="text-xs">.env.local</code> / Vercel only — never the
+          database.
         </p>
       </div>
 
-      <Tabs defaultValue="general">
+      <Tabs defaultValue="environment">
         <TabsList>
+          <TabsTrigger value="environment">Environment</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="ai">AI</TabsTrigger>
-          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="environment">
+          <Card>
+            <CardHeader>
+              <CardTitle>Environment credentials</CardTitle>
+              <CardDescription>
+                Status is read from the running server. Edit{" "}
+                <strong>.env.local</strong> locally or Vercel{" "}
+                <strong>Production</strong>, then restart / redeploy.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <EnvCredentialsStatus />
+              <div>
+                <Label>Webhook URL (Meta)</Label>
+                <div className="mt-2">
+                  <WebhookUrlField />
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700">
+                <p>WHATSAPP_PHONE_ID=</p>
+                <p>WHATSAPP_TOKEN=</p>
+                <p>WHATSAPP_VERIFY_TOKEN=</p>
+                <p>OPENROUTER_API_KEY=</p>
+                <p>OPENROUTER_DEFAULT_MODEL=</p>
+                <p>NEXT_PUBLIC_APP_URL=</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="general">
           <Card>
@@ -150,78 +150,6 @@ export default function SettingsPage() {
               <Button onClick={saveGeneral} disabled={saving}>
                 Save general
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="ai">
-          <Card>
-            <CardHeader>
-              <CardTitle>OpenRouter</CardTitle>
-              <CardDescription>
-                Optional here if you already set OPENROUTER_API_KEY in Vercel / .env.local.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>API key</Label>
-                <Input
-                  className="mt-2"
-                  type="password"
-                  value={api.openrouter_api_key}
-                  onChange={(e) =>
-                    setApi((a) => ({ ...a, openrouter_api_key: e.target.value }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Default model (override)</Label>
-                <select
-                  className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                  value={api.openrouter_model}
-                  onChange={(e) =>
-                    setApi((a) => ({ ...a, openrouter_model: e.target.value }))
-                  }
-                >
-                  {AI_MODELS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button onClick={saveAiSettings} disabled={saving}>
-                Save AI settings
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="whatsapp">
-          <Card>
-            <CardHeader>
-              <CardTitle>WhatsApp (environment only)</CardTitle>
-              <CardDescription>
-                Credentials are not stored in the dashboard. Set them in Vercel or .env.local.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Secrets are never shown in full here. Status is read from the{" "}
-                <strong>live server</strong> (Production deployment), not from
-                your browser.
-              </p>
-              <WhatsAppEnvStatus />
-              <div>
-                <Label>Webhook URL (for Meta)</Label>
-                <div className="mt-2">
-                  <WebhookUrlField />
-                </div>
-              </div>
-              <p className="text-sm text-slate-500">
-                In Vercel, add variables to <strong>Production</strong> (not only
-                Development), then redeploy.
-              </p>
             </CardContent>
           </Card>
         </TabsContent>

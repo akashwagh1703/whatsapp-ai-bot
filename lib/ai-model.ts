@@ -10,11 +10,7 @@ export function getDefaultAiModel(): string {
   );
 }
 
-/** Admin-selected model wins; otherwise env default. */
-export function resolveAiModel(
-  aiSettingsModel?: string | null,
-  appSettingsModel?: string | null
-): string {
-  const fromAdmin = aiSettingsModel?.trim() || appSettingsModel?.trim();
-  return fromAdmin || getDefaultAiModel();
+/** AI Bot model from DB wins; otherwise OPENROUTER_DEFAULT_MODEL env. */
+export function resolveAiModel(aiSettingsModel?: string | null): string {
+  return aiSettingsModel?.trim() || getDefaultAiModel();
 }
