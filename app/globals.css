@@ -4,6 +4,7 @@
   --background: #f4f7fb;
   --foreground: #0f172a;
   --sidebar: #0b1220;
+  --sidebar-width: 17.5rem;
   --primary: #059669;
   --card: #ffffff;
   --border: #e2e8f0;
@@ -50,11 +51,20 @@ body {
 /* ——— Sidebar ——— */
 
 .sidebar-shell {
+  height: 100dvh;
+  max-height: 100dvh;
   background: linear-gradient(180deg, #0c1222 0%, #0f172a 42%, #0a1628 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
     4px 0 32px -8px rgba(0, 0, 0, 0.35),
     inset -1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+@supports not (height: 100dvh) {
+  .sidebar-shell {
+    height: 100vh;
+    max-height: 100vh;
+  }
 }
 
 .sidebar-mesh {

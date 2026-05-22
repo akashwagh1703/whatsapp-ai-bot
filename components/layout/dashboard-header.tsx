@@ -87,7 +87,7 @@ export function DashboardHeader() {
   const segment = pathname.split("/").filter(Boolean)[0] ?? "dashboard";
 
   return (
-    <header className="dashboard-header sticky top-0 z-30 border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
+    <header className="dashboard-header sticky top-0 z-30 shrink-0 border-b border-white/60 bg-white/70 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <button
