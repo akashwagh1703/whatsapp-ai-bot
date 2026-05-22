@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { INTEGRATION_EVENTS } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
-import { WebhookUrlField } from "@/components/shared/webhook-url-field";
+import { SetupChecklist } from "@/components/integrations/setup-checklist";
 
 export default function IntegrationsPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -72,39 +72,29 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-10">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Integrations</h1>
         <p className="mt-1 text-slate-500">
-          Connect your tools and receive events in real time.
+          Connect WhatsApp, OpenRouter AI, and Meta — then optional outbound webhooks.
         </p>
       </div>
+
+      <SetupChecklist />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plug className="h-5 w-5 text-emerald-600" />
-            WhatsApp webhook (Meta)
+            Outbound webhooks (optional)
           </CardTitle>
           <CardDescription>
-            Use this URL when configuring Meta WhatsApp Cloud API.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <WebhookUrlField />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your webhook URL</CardTitle>
-          <CardDescription>
-            We&apos;ll POST events to this URL when something happens.
+            Notify your CRM or other tools when events happen in FlowChat AI.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Webhook URL</Label>
+            <Label>Your webhook URL</Label>
             <Input
               className="mt-2"
               placeholder="https://your-app.com/webhook"
@@ -143,7 +133,7 @@ export default function IntegrationsPage() {
               ))}
             </div>
           </div>
-          <Button onClick={handleSave}>Save integrations</Button>
+          <Button onClick={handleSave}>Save outbound webhooks</Button>
         </CardContent>
       </Card>
     </div>

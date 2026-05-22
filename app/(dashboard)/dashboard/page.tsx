@@ -28,8 +28,17 @@ import { createClient } from "@/lib/supabase/client";
 import { RelativeTime } from "@/components/shared/relative-time";
 import type { Conversation } from "@/types";
 import Link from "next/link";
+import type { IntegrationStatus } from "@/services/integration-status.service";
 
 export default function DashboardPage() {
+  const { data: integrationStatus } = useQuery({
+    queryKey: ["integration-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/setup/status", { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json() as IntegrationStatus;
+    },
+  });
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
@@ -94,9 +103,18 @@ export default function DashboardPage() {
           Your AI assistant is actively helping customers today.
         </h1>
         <p className="mt-2 max-w-2xl text-slate-500">
-          Everything is running smoothly. Review conversations or fine-tune your
-          AI when you&apos;re ready.
+          {integrationStatus?.readyForAutoReply
+            ? "Everything is running smoothly. Review conversations or fine-tune your AI when you're ready."
+            : "Complete integration setup to enable automatic AI replies on WhatsApp."}
         </p>
+        {integrationStatus && !integrationStatus.readyForAutoReply && (
+          <Link
+            href="/integrations"
+            className="mt-4 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Finish integration setup →
+          </Link>
+        )}
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
