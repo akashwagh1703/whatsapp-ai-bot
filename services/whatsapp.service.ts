@@ -121,12 +121,23 @@ export function summarizeWebhookPayload(body: {
 }) {
   const fields: string[] = [];
   let messageCount = 0;
+  let phoneNumberId: string | null = null;
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
       if (change.field) fields.push(change.field);
-      const value = change.value as { messages?: unknown[] } | undefined;
+      const value = change.value as {
+        messages?: unknown[];
+        metadata?: { phone_number_id?: string };
+      };
       messageCount += value?.messages?.length ?? 0;
+      if (value?.metadata?.phone_number_id) {
+        phoneNumberId = value.metadata.phone_number_id;
+      }
     }
   }
-  return { fields: fields.join(", ") || "none", messageCount };
+  return {
+    fields: fields.join(", ") || "none",
+    messageCount,
+    phoneNumberId,
+  };
 }

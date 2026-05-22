@@ -6,6 +6,7 @@ export async function logWebhookEvent(
   params: {
     fields: string;
     messagesCount: number;
+    phoneNumberId?: string | null;
     result: WebhookProcessResult;
   }
 ) {
@@ -22,11 +23,18 @@ export async function logWebhookEvent(
     : null;
 
   try {
+    const note = [
+      params.phoneNumberId ? `phone_id:${params.phoneNumberId}` : null,
+      firstResult,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
     await supabase.from("webhook_events").insert({
       fields: params.fields,
       messages_count: params.messagesCount,
       warning: params.result.warning ?? params.result.error ?? null,
-      first_result: firstResult,
+      first_result: note || firstResult,
     });
   } catch {
     // Table may not exist until schema is applied

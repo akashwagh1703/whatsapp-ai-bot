@@ -6,6 +6,7 @@ import {
   getWhatsAppAccessToken,
   getWhatsAppPhoneId,
 } from "@/lib/whatsapp-env";
+import { summarizeWebhookPayload } from "@/services/whatsapp.service";
 import {
   buildSystemPrompt,
   generateAiReply,
@@ -186,6 +187,20 @@ export async function processWhatsAppWebhook(
   const phoneId = getWhatsAppPhoneId();
   const token = getWhatsAppAccessToken();
   const openRouterKey = getOpenRouterApiKey();
+
+  const metaSummary = summarizeWebhookPayload(
+    body as Parameters<typeof summarizeWebhookPayload>[0]
+  );
+  if (
+    metaSummary.phoneNumberId &&
+    phoneId &&
+    metaSummary.phoneNumberId !== phoneId
+  ) {
+    console.error("[webhook] phone_number_id mismatch", {
+      meta: metaSummary.phoneNumberId,
+      env: phoneId,
+    });
+  }
 
   const results: WebhookMessageResult[] = [];
 

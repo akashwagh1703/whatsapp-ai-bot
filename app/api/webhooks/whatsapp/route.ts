@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     await logWebhookEvent(supabase, {
       fields: summary.fields,
       messagesCount: summary.messageCount,
+      phoneNumberId: summary.phoneNumberId,
       result,
     });
   } catch {
@@ -59,8 +60,18 @@ export async function POST(request: Request) {
     );
   }
 
+  const first = result.results[0];
   return NextResponse.json({
     ok: result.ok,
     warning: result.warning,
+    error: result.error,
+    messagesParsed: result.messagesParsed,
+    metaFields: summary.fields,
+    phoneNumberIdFromMeta: summary.phoneNumberId,
+    replySent: first?.replySent ?? false,
+    replySaved: first?.replySaved ?? false,
+    skippedReason: first?.skippedReason,
+    sendError: first?.error,
+    env: result.env,
   });
 }
