@@ -12,7 +12,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
 import { createClient } from "@/lib/supabase/client";
@@ -132,9 +133,17 @@ export function SetupChecklist() {
                   <p className="text-sm text-slate-500">{step.description}</p>
                 </div>
               </div>
-              <Button variant={step.ok ? "outline" : "default"} size="sm" asChild>
-                <Link href={step.actionHref}>{step.actionLabel}</Link>
-              </Button>
+              <Link
+                href={step.actionHref}
+                className={cn(
+                  buttonVariants({
+                    variant: step.ok ? "outline" : "default",
+                    size: "sm",
+                  })
+                )}
+              >
+                {step.actionLabel}
+              </Link>
             </CardContent>
           </Card>
         ))}
@@ -184,16 +193,18 @@ export function SetupChecklist() {
               </Button>
             )}
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <a
-              href="https://developers.facebook.com/apps/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open Meta Developer Console
-            </a>
-          </Button>
+          <a
+            href="https://developers.facebook.com/apps/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "inline-flex"
+            )}
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open Meta Developer Console
+          </a>
           <Button variant="ghost" size="sm" onClick={() => refetch()}>
             Refresh status
           </Button>
