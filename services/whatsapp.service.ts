@@ -41,7 +41,11 @@ export function verifyWebhook(
   challenge: string | null,
   verifyToken: string
 ) {
-  if (mode === "subscribe" && token === verifyToken) {
+  if (
+    mode === "subscribe" &&
+    token?.trim() === verifyToken.trim() &&
+    challenge
+  ) {
     return challenge;
   }
   return null;

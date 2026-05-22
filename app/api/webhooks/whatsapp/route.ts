@@ -24,8 +24,27 @@ export async function GET(request: Request) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  const verifyToken =
-    process.env.WHATSAPP_VERIFY_TOKEN || "flowchat-verify";
+  let verifyToken =
+    process.env.WHATSAPP_VERIFY_TOKEN?.trim() || "";
+
+  if (!verifyToken) {
+    try {
+      const supabase = await createServiceClient();
+      const { data: appSettings } = await supabase
+        .from("app_settings")
+        .select("whatsapp_verify_token")
+        .not("whatsapp_verify_token", "is", null)
+        .limit(1)
+        .maybeSingle();
+      verifyToken = appSettings?.whatsapp_verify_token?.trim() ?? "";
+    } catch {
+      // fall through to default
+    }
+  }
+
+  if (!verifyToken) {
+    verifyToken = "flowchat-verify";
+  }
 
   const result = verifyWebhook(mode, token, challenge, verifyToken);
   if (result) {
