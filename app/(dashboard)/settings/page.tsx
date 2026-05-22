@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { AI_MODELS, DEFAULT_AI_MODEL } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
+import { WhatsAppEnvStatus } from "@/components/settings/whatsapp-env-status";
 
 export default function SettingsPage() {
   const [business, setBusiness] = useState({
@@ -205,14 +206,12 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700">
-                <p>WHATSAPP_PHONE_ID=</p>
-                <p>WHATSAPP_TOKEN=</p>
-                <p>WHATSAPP_VERIFY_TOKEN=</p>
-                <p className="mt-2 text-slate-500">
-                  Default verify token if unset: flowchat-verify
-                </p>
-              </div>
+              <p className="text-sm text-slate-600">
+                Secrets are never shown in full here. Status is read from the{" "}
+                <strong>live server</strong> (Production deployment), not from
+                your browser.
+              </p>
+              <WhatsAppEnvStatus />
               <div>
                 <Label>Webhook URL (for Meta)</Label>
                 <div className="mt-2">
@@ -220,8 +219,8 @@ export default function SettingsPage() {
                 </div>
               </div>
               <p className="text-sm text-slate-500">
-                After updating env vars on Vercel, redeploy. Configure webhook in{" "}
-                <strong>Integrations</strong> or Meta Developer Console.
+                In Vercel, add variables to <strong>Production</strong> (not only
+                Development), then redeploy.
               </p>
             </CardContent>
           </Card>
