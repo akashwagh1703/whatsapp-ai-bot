@@ -36,7 +36,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const res = await fetch("/api/setup/status", { credentials: "include" });
       if (!res.ok) return null;
-      return res.json() as IntegrationStatus;
+      return (await res.json()) as IntegrationStatus;
     },
   });
   const { data: stats, isLoading: statsLoading } = useQuery({

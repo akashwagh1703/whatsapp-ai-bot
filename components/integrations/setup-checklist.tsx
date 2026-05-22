@@ -27,7 +27,7 @@ export function SetupChecklist() {
     queryFn: async () => {
       const res = await fetch("/api/setup/status", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load status");
-      return res.json() as IntegrationStatus;
+      return (await res.json()) as IntegrationStatus;
     },
   });
 
