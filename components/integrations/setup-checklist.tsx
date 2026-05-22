@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,12 +16,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
-import { createClient } from "@/lib/supabase/client";
 import type { IntegrationStatus } from "@/services/integration-status.service";
 
 export function SetupChecklist() {
   const [copied, setCopied] = useState<string | null>(null);
-  const [verifyToken, setVerifyToken] = useState("");
 
   const { data: status, isLoading, refetch } = useQuery({
     queryKey: ["integration-status"],
@@ -31,26 +29,6 @@ export function SetupChecklist() {
       return (await res.json()) as IntegrationStatus;
     },
   });
-
-  useEffect(() => {
-    async function loadToken() {
-      const supabase = createClient();
-      const { data: business } = await supabase
-        .from("businesses")
-        .select("id")
-        .maybeSingle();
-      if (!business) return;
-      const { data: app } = await supabase
-        .from("app_settings")
-        .select("whatsapp_verify_token")
-        .eq("business_id", business.id)
-        .maybeSingle();
-      if (app?.whatsapp_verify_token) {
-        setVerifyToken(app.whatsapp_verify_token);
-      }
-    }
-    loadToken();
-  }, []);
 
   function copyText(key: string, text: string) {
     navigator.clipboard.writeText(text);
@@ -174,24 +152,22 @@ export function SetupChecklist() {
             </Button>
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Verify token</p>
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm">
-              {verifyToken ||
-                (status?.verifyTokenConfigured
-                  ? "(set in Vercel env — also add in Settings → WhatsApp)"
-                  : "Not set — add in Settings → WhatsApp or WHATSAPP_VERIFY_TOKEN")}
+            <p className="mb-2 text-sm font-medium text-slate-700">Verify token (env only)</p>
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-700">
+              WHATSAPP_VERIFY_TOKEN
+              {status?.verifyTokenUsesDefault ? (
+                <span className="mt-1 block text-slate-500">
+                  Not set in env → default: <strong>flowchat-verify</strong>
+                </span>
+              ) : (
+                <span className="mt-1 block text-emerald-700">
+                  Custom token set in Vercel / .env.local — use the same value in Meta.
+                </span>
+              )}
             </p>
-            {verifyToken && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => copyText("token", verifyToken)}
-              >
-                <Copy className="h-4 w-4" />
-                {copied === "token" ? "Copied" : "Copy verify token"}
-              </Button>
-            )}
+            <p className="mt-2 text-xs text-slate-500">
+              Env vars: {status?.whatsappEnvVars.join(", ")}
+            </p>
           </div>
           <a
             href="https://developers.facebook.com/apps/"

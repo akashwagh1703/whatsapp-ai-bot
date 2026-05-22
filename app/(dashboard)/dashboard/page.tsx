@@ -230,7 +230,7 @@ export default function DashboardPage() {
           <EmptyState
             icon={MessageSquare}
             title="No conversations yet"
-            description="Your AI assistant is ready to help customers. Connect WhatsApp in Settings to get started."
+            description="Your AI assistant is ready. Add WHATSAPP_* env vars on Vercel and complete Integrations setup."
           />
         ) : (
           <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200/80 bg-white">

@@ -47,7 +47,7 @@ OPENROUTER_DEFAULT_MODEL=minimax/minimax-m2.5:free
 
 1. [developers.facebook.com](https://developers.facebook.com) → your app → **WhatsApp**
 2. **API Setup** → copy **Phone number ID** and **Access token**
-3. **Settings → WhatsApp** in FlowChat AI → paste and save
+3. **Vercel env:** `WHATSAPP_PHONE_ID`, `WHATSAPP_TOKEN`, `WHATSAPP_VERIFY_TOKEN`
 4. **Configuration → Webhook**
    - Callback URL: `https://wa-bot-portal.vercel.app/api/webhooks/whatsapp`
    - Verify token: same as `WHATSAPP_VERIFY_TOKEN`

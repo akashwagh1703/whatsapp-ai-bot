@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWebhookUrl } from "@/lib/app-url";
 import { getDefaultAiModel } from "@/lib/ai-model";
+import {
+  getWhatsAppVerifyToken,
+  hasCustomVerifyToken,
+  isWhatsAppEnvConfigured,
+} from "@/lib/whatsapp-env";
 
 export type SetupStepId =
   | "account"
@@ -22,6 +27,8 @@ export interface IntegrationStatus {
   readyForAutoReply: boolean;
   webhookUrl: string;
   verifyTokenConfigured: boolean;
+  verifyTokenUsesDefault: boolean;
+  whatsappEnvVars: string[];
   defaultModel: string;
   steps: SetupStep[];
 }
@@ -33,9 +40,7 @@ export async function getIntegrationStatus(
   const [{ data: app }, { data: ai }] = await Promise.all([
     supabase
       .from("app_settings")
-      .select(
-        "whatsapp_phone_id, whatsapp_access_token, whatsapp_verify_token, openrouter_api_key"
-      )
+      .select("openrouter_api_key")
       .eq("business_id", businessId)
       .maybeSingle(),
     supabase
@@ -45,20 +50,12 @@ export async function getIntegrationStatus(
       .maybeSingle(),
   ]);
 
-  const phoneId =
-    app?.whatsapp_phone_id?.trim() || process.env.WHATSAPP_PHONE_ID?.trim();
-  const waToken =
-    app?.whatsapp_access_token?.trim() || process.env.WHATSAPP_TOKEN?.trim();
+  const whatsappOk = isWhatsAppEnvConfigured();
   const openRouterKey =
     app?.openrouter_api_key?.trim() || process.env.OPENROUTER_API_KEY?.trim();
-  const verifyToken =
-    app?.whatsapp_verify_token?.trim() ||
-    process.env.WHATSAPP_VERIFY_TOKEN?.trim();
-
-  const whatsappOk = !!(phoneId && waToken);
   const openRouterOk = !!openRouterKey;
   const aiOk = !!ai?.enabled;
-  const webhookOk = !!verifyToken;
+  const webhookOk = true;
 
   const steps: SetupStep[] = [
     {
@@ -71,16 +68,17 @@ export async function getIntegrationStatus(
     },
     {
       id: "whatsapp",
-      label: "WhatsApp (Meta)",
-      description: "Phone ID and access token so the app can send messages.",
+      label: "WhatsApp env vars",
+      description:
+        "WHATSAPP_PHONE_ID and WHATSAPP_TOKEN in Vercel / .env.local (not in dashboard).",
       ok: whatsappOk,
       actionHref: "/settings",
-      actionLabel: "Add WhatsApp credentials",
+      actionLabel: "View env variable names",
     },
     {
       id: "openrouter",
       label: "OpenRouter (AI)",
-      description: "API key powers automatic AI replies.",
+      description: "OPENROUTER_API_KEY in env or optional key in Settings → AI.",
       ok: openRouterOk,
       actionHref: "/settings",
       actionLabel: "Add OpenRouter key",
@@ -95,19 +93,25 @@ export async function getIntegrationStatus(
     },
     {
       id: "meta_webhook",
-      label: "Meta webhook verified",
+      label: "Meta webhook",
       description:
-        "Callback URL + verify token in Meta Developer Console (messages subscribed).",
+        "Callback URL + WHATSAPP_VERIFY_TOKEN in Meta (default: flowchat-verify if unset).",
       ok: webhookOk,
-      actionHref: "/integrations",
+      actionHref: "/integrations#meta-webhook",
       actionLabel: "Copy webhook details",
     },
   ];
 
   return {
-    readyForAutoReply: whatsappOk && openRouterOk && aiOk && webhookOk,
+    readyForAutoReply: whatsappOk && openRouterOk && aiOk,
     webhookUrl: getWebhookUrl(),
-    verifyTokenConfigured: webhookOk,
+    verifyTokenConfigured: hasCustomVerifyToken() || !!getWhatsAppVerifyToken(),
+    verifyTokenUsesDefault: !hasCustomVerifyToken(),
+    whatsappEnvVars: [
+      "WHATSAPP_PHONE_ID",
+      "WHATSAPP_TOKEN",
+      "WHATSAPP_VERIFY_TOKEN",
+    ],
     defaultModel: getDefaultAiModel(),
     steps,
   };

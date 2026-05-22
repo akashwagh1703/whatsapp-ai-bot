@@ -11,7 +11,10 @@ const TONE_INSTRUCTIONS: Record<AiTone, string> = {
     "Respond with refined, premium language suitable for a luxury brand.",
 };
 
-export function buildSystemPrompt(settings: AiSettings) {
+export function buildSystemPrompt(settings: Pick<
+  AiSettings,
+  "prompt" | "tone" | "business_knowledge" | "human_handoff"
+>) {
   const parts = [
     settings.prompt || "You are a helpful business assistant on WhatsApp.",
     TONE_INSTRUCTIONS[settings.tone],

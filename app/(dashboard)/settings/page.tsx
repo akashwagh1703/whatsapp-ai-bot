@@ -17,11 +17,6 @@ export default function SettingsPage() {
     phone: "",
     logo_url: "",
   });
-  const [whatsapp, setWhatsapp] = useState({
-    whatsapp_phone_id: "",
-    whatsapp_access_token: "",
-    whatsapp_verify_token: "",
-  });
   const [api, setApi] = useState({
     openrouter_api_key: "",
     openrouter_model: DEFAULT_AI_MODEL,
@@ -41,15 +36,10 @@ export default function SettingsPage() {
         });
         const { data: app } = await supabase
           .from("app_settings")
-          .select("*")
+          .select("openrouter_api_key, openrouter_model")
           .eq("business_id", biz.id)
           .maybeSingle();
         if (app) {
-          setWhatsapp({
-            whatsapp_phone_id: app.whatsapp_phone_id ?? "",
-            whatsapp_access_token: app.whatsapp_access_token ?? "",
-            whatsapp_verify_token: app.whatsapp_verify_token ?? "",
-          });
           setApi({
             openrouter_api_key: app.openrouter_api_key ?? "",
             openrouter_model:
@@ -78,15 +68,15 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
-  async function saveAppSettings() {
+  async function saveAiSettings() {
     setSaving(true);
     const supabase = createClient();
     const { data: biz } = await supabase.from("businesses").select("id").maybeSingle();
     if (!biz) return;
     await supabase.from("app_settings").upsert({
       business_id: biz.id,
-      ...whatsapp,
-      ...api,
+      openrouter_api_key: api.openrouter_api_key || null,
+      openrouter_model: api.openrouter_model || null,
       updated_at: new Date().toISOString(),
     });
     setSaving(false);
@@ -97,16 +87,15 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="mt-1 text-slate-500">
-          Manage your business profile and connections.
+          Business profile and AI keys. WhatsApp uses environment variables only.
         </p>
       </div>
 
       <Tabs defaultValue="general">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
           <TabsTrigger value="ai">AI</TabsTrigger>
-          <TabsTrigger value="api">API</TabsTrigger>
+          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -164,67 +153,13 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="whatsapp">
-          <Card>
-            <CardHeader>
-              <CardTitle>WhatsApp</CardTitle>
-              <CardDescription>
-                Connect Meta WhatsApp Cloud API credentials.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Phone ID</Label>
-                <Input
-                  className="mt-2"
-                  value={whatsapp.whatsapp_phone_id}
-                  onChange={(e) =>
-                    setWhatsapp((w) => ({
-                      ...w,
-                      whatsapp_phone_id: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Access token</Label>
-                <Input
-                  className="mt-2"
-                  type="password"
-                  value={whatsapp.whatsapp_access_token}
-                  onChange={(e) =>
-                    setWhatsapp((w) => ({
-                      ...w,
-                      whatsapp_access_token: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Verify token</Label>
-                <Input
-                  className="mt-2"
-                  value={whatsapp.whatsapp_verify_token}
-                  onChange={(e) =>
-                    setWhatsapp((w) => ({
-                      ...w,
-                      whatsapp_verify_token: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <Button onClick={saveAppSettings} disabled={saving}>
-                Save WhatsApp
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="ai">
           <Card>
             <CardHeader>
               <CardTitle>OpenRouter</CardTitle>
-              <CardDescription>Power your AI assistant with OpenRouter.</CardDescription>
+              <CardDescription>
+                Optional here if you already set OPENROUTER_API_KEY in Vercel / .env.local.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -239,7 +174,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <Label>Default model</Label>
+                <Label>Default model (override)</Label>
                 <select
                   className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
                   value={api.openrouter_model}
@@ -254,29 +189,39 @@ export default function SettingsPage() {
                   ))}
                 </select>
               </div>
-              <Button onClick={saveAppSettings} disabled={saving}>
+              <Button onClick={saveAiSettings} disabled={saving}>
                 Save AI settings
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="api">
+        <TabsContent value="whatsapp">
           <Card>
             <CardHeader>
-              <CardTitle>API</CardTitle>
+              <CardTitle>WhatsApp (environment only)</CardTitle>
               <CardDescription>
-                Webhook endpoint for incoming WhatsApp messages.
+                Credentials are not stored in the dashboard. Set them in Vercel or .env.local.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Label>Webhook URL</Label>
-              <div className="mt-2">
-                <WebhookUrlField />
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700">
+                <p>WHATSAPP_PHONE_ID=</p>
+                <p>WHATSAPP_TOKEN=</p>
+                <p>WHATSAPP_VERIFY_TOKEN=</p>
+                <p className="mt-2 text-slate-500">
+                  Default verify token if unset: flowchat-verify
+                </p>
               </div>
-              <p className="mt-3 text-sm text-slate-500">
-                Configure this in Meta Developer Console. Use the verify token
-                from the WhatsApp tab.
+              <div>
+                <Label>Webhook URL (for Meta)</Label>
+                <div className="mt-2">
+                  <WebhookUrlField />
+                </div>
+              </div>
+              <p className="text-sm text-slate-500">
+                After updating env vars on Vercel, redeploy. Configure webhook in{" "}
+                <strong>Integrations</strong> or Meta Developer Console.
               </p>
             </CardContent>
           </Card>

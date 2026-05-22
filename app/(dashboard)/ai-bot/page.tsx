@@ -11,6 +11,7 @@ import { AI_MODELS, AI_TONES, DEFAULT_AI_MODEL } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
 import type { AiSettings, AiTone } from "@/types";
 import { cn } from "@/lib/utils";
+import { PromptSuggestions } from "@/components/ai-bot/prompt-suggestions";
 
 export default function AiBotPage() {
   const [settings, setSettings] = useState<Partial<AiSettings>>({
@@ -134,6 +135,14 @@ export default function AiBotPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <PromptSuggestions
+            onApplyMain={(text) =>
+              setSettings((s) => ({ ...s, prompt: text }))
+            }
+            onApplyKnowledge={(text) =>
+              setSettings((s) => ({ ...s, business_knowledge: text }))
+            }
+          />
           <div>
             <Label>Main prompt</Label>
             <Textarea

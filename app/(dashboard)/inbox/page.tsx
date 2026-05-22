@@ -19,6 +19,7 @@ import { formatPhone } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
 import type { Conversation, Message } from "@/types";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export default function InboxPage() {
   const searchParams = useSearchParams();
@@ -168,7 +169,15 @@ export default function InboxPage() {
                 <EmptyState
                   icon={Inbox}
                   title="No conversations yet"
-                  description="Your AI assistant is ready to help customers."
+                  description="Messages appear here only after a customer texts your WhatsApp business number and Meta delivers the webhook. Send a test message from your phone to that number—not from the dashboard test button alone."
+                  action={
+                    <Link
+                      href="/integrations"
+                      className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                    >
+                      Check integration setup →
+                    </Link>
+                  }
                 />
               </div>
             ) : (

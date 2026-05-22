@@ -5,6 +5,10 @@ import { getOrCreateBusiness } from "@/lib/business";
 import { rateLimit } from "@/lib/rate-limit";
 import { saveMessage, bumpAnalytics } from "@/services/message.service";
 import { sendWhatsAppText } from "@/services/whatsapp.service";
+import {
+  getWhatsAppAccessToken,
+  getWhatsAppPhoneId,
+} from "@/lib/whatsapp-env";
 
 const schema = z.object({
   conversationId: z.string().uuid(),
@@ -44,16 +48,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data: settings } = await supabase
-    .from("app_settings")
-    .select("whatsapp_phone_id, whatsapp_access_token")
-    .eq("business_id", business.id)
-    .single();
-
-  const phoneId =
-    settings?.whatsapp_phone_id || process.env.WHATSAPP_PHONE_ID;
-  const token =
-    settings?.whatsapp_access_token || process.env.WHATSAPP_TOKEN;
+  const phoneId = getWhatsAppPhoneId();
+  const token = getWhatsAppAccessToken();
 
   if (phoneId && token && conversation.contact?.phone) {
     try {

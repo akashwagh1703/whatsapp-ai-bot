@@ -18,6 +18,11 @@ import {
 import { dispatchIntegrationWebhook } from "@/services/webhook-dispatch.service";
 import { rateLimit } from "@/lib/rate-limit";
 import { resolveAiModel } from "@/lib/ai-model";
+import {
+  getWhatsAppAccessToken,
+  getWhatsAppPhoneId,
+  getWhatsAppVerifyToken,
+} from "@/lib/whatsapp-env";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -25,29 +30,12 @@ export async function GET(request: Request) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  let verifyToken =
-    process.env.WHATSAPP_VERIFY_TOKEN?.trim() || "";
-
-  if (!verifyToken) {
-    try {
-      const supabase = await createServiceClient();
-      const { data: appSettings } = await supabase
-        .from("app_settings")
-        .select("whatsapp_verify_token")
-        .not("whatsapp_verify_token", "is", null)
-        .limit(1)
-        .maybeSingle();
-      verifyToken = appSettings?.whatsapp_verify_token?.trim() ?? "";
-    } catch {
-      // fall through to default
-    }
-  }
-
-  if (!verifyToken) {
-    verifyToken = "flowchat-verify";
-  }
-
-  const result = verifyWebhook(mode, token, challenge, verifyToken);
+  const result = verifyWebhook(
+    mode,
+    token,
+    challenge,
+    getWhatsAppVerifyToken()
+  );
   if (result) {
     return new NextResponse(result, { status: 200 });
   }
@@ -80,30 +68,28 @@ export async function POST(request: Request) {
     .from("app_settings")
     .select("*")
     .eq("business_id", businessId)
-    .single();
+    .maybeSingle();
 
   const { data: aiSettings } = await supabase
     .from("ai_settings")
     .select("*")
     .eq("business_id", businessId)
-    .single();
+    .maybeSingle();
 
   const { data: automations } = await supabase
     .from("automations")
     .select("*")
     .eq("business_id", businessId)
-    .single();
+    .maybeSingle();
 
   const { data: integrations } = await supabase
     .from("integration_settings")
     .select("*")
     .eq("business_id", businessId)
-    .single();
+    .maybeSingle();
 
-  const phoneId =
-    appSettings?.whatsapp_phone_id || process.env.WHATSAPP_PHONE_ID;
-  const token =
-    appSettings?.whatsapp_access_token || process.env.WHATSAPP_TOKEN;
+  const phoneId = getWhatsAppPhoneId();
+  const token = getWhatsAppAccessToken();
   const openRouterKey =
     appSettings?.openrouter_api_key || process.env.OPENROUTER_API_KEY;
 
@@ -218,25 +204,44 @@ export async function POST(request: Request) {
     }
 
     if (replyText && phoneId && token) {
-      await sendWhatsAppText({
-        phoneId,
-        token,
-        to: msg.from,
-        text: replyText,
-      });
+      try {
+        await sendWhatsAppText({
+          phoneId,
+          token,
+          to: msg.from,
+          text: replyText,
+        });
 
-      await saveMessage(supabase, {
-        conversationId: conversation.id,
-        direction: "outbound",
-        content: replyText,
-        isAi: !matched && !!aiSettings?.enabled,
-      });
+        await saveMessage(supabase, {
+          conversationId: conversation.id,
+          direction: "outbound",
+          content: replyText,
+          isAi: !matched && !!aiSettings?.enabled,
+        });
 
-      await bumpAnalytics(
-        supabase,
-        businessId,
-        !matched && aiSettings?.enabled ? "ai_replies" : "human_replies"
-      );
+        await bumpAnalytics(
+          supabase,
+          businessId,
+          !matched && aiSettings?.enabled ? "ai_replies" : "human_replies"
+        );
+      } catch (e) {
+        console.error("WhatsApp send failed:", e);
+      }
+    } else if (!replyText) {
+      console.warn("[webhook] No reply generated", {
+        from: msg.from,
+        aiEnabled: aiSettings?.enabled,
+        convAiEnabled: conversation.ai_enabled,
+        hasOpenRouter: !!openRouterKey,
+        hasContent: !!msg.content,
+        hasPhoneId: !!phoneId,
+        hasWaToken: !!token,
+      });
+    } else {
+      console.warn("[webhook] Reply ready but WhatsApp credentials missing", {
+        hasPhoneId: !!phoneId,
+        hasWaToken: !!token,
+      });
     }
   }
 
