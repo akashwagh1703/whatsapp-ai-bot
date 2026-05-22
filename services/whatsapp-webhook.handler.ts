@@ -6,6 +6,7 @@ import {
   getWhatsAppAccessToken,
   getWhatsAppPhoneId,
 } from "@/lib/whatsapp-env";
+import { resolveWebhookBusinessId } from "@/lib/resolve-webhook-business";
 import { summarizeWebhookPayload } from "@/services/whatsapp.service";
 import {
   buildSystemPrompt,
@@ -45,11 +46,14 @@ export interface WebhookProcessResult {
   messagesParsed: number;
   warning?: string;
   error?: string;
+  businessId?: string;
+  phoneMismatch?: boolean;
   results: WebhookMessageResult[];
   env: {
     hasPhoneId: boolean;
     hasWaToken: boolean;
     hasOpenRouter: boolean;
+    hasServiceRole: boolean;
     aiEnabled: boolean;
   };
 }
@@ -114,6 +118,7 @@ export async function processWhatsAppWebhook(
     hasPhoneId: !!getWhatsAppPhoneId(),
     hasWaToken: !!getWhatsAppAccessToken(),
     hasOpenRouter: !!getOpenRouterApiKey(),
+    hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
     aiEnabled: false,
   };
 
@@ -143,19 +148,27 @@ export async function processWhatsAppWebhook(
     };
   }
 
-  const { data: businesses } = await supabase.from("businesses").select("id");
+  const metaSummary = summarizeWebhookPayload(
+    body as Parameters<typeof summarizeWebhookPayload>[0]
+  );
 
-  if (!businesses?.length) {
+  const resolved = await resolveWebhookBusinessId(
+    supabase,
+    metaSummary.phoneNumberId
+  );
+
+  if (!resolved.businessId) {
     return {
       ok: false,
       messagesParsed: incoming.length,
       warning: "no_business",
       results: [],
       env,
+      phoneMismatch: resolved.warning === "phone_id_mismatch",
     };
   }
 
-  const businessId = businesses[0].id as string;
+  const businessId = resolved.businessId;
 
   let aiSettings;
   try {
@@ -188,14 +201,7 @@ export async function processWhatsAppWebhook(
   const token = getWhatsAppAccessToken();
   const openRouterKey = getOpenRouterApiKey();
 
-  const metaSummary = summarizeWebhookPayload(
-    body as Parameters<typeof summarizeWebhookPayload>[0]
-  );
-  if (
-    metaSummary.phoneNumberId &&
-    phoneId &&
-    metaSummary.phoneNumberId !== phoneId
-  ) {
+  if (resolved.warning === "phone_id_mismatch") {
     console.error("[webhook] phone_number_id mismatch", {
       meta: metaSummary.phoneNumberId,
       env: phoneId,
@@ -375,6 +381,8 @@ export async function processWhatsAppWebhook(
   return {
     ok: true,
     messagesParsed: incoming.length,
+    businessId,
+    phoneMismatch: resolved.warning === "phone_id_mismatch",
     results,
     env,
   };

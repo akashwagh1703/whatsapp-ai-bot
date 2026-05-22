@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Loader2,
   Play,
+  Radio,
   XCircle,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +40,18 @@ interface WebhookMeta {
   recentWebhooks?: WebhookEvent[];
 }
 
+interface LiveStatus {
+  at: string;
+  readyForAutoReply: boolean;
+  serviceRoleOk: boolean;
+  businessCount: number;
+  lastWebhookAt: string | null;
+  lastWebhookMessages: number;
+  lastWebhookResult: string | null;
+  lastWebhookWarning: string | null;
+  hints: string[];
+}
+
 export default function WebhookTestPage() {
   const [meta, setMeta] = useState<WebhookMeta | null>(null);
   const [verifyToken, setVerifyToken] = useState("flowchat-verify");
@@ -48,8 +61,10 @@ export default function WebhookTestPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<object | null>(null);
   const [copied, setCopied] = useState(false);
+  const [liveMonitor, setLiveMonitor] = useState(true);
+  const [live, setLive] = useState<LiveStatus | null>(null);
 
-  useEffect(() => {
+  function loadMeta() {
     fetch("/api/setup/webhook-test", { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
@@ -59,7 +74,35 @@ export default function WebhookTestPage() {
         }
       })
       .catch(() => {});
+  }
+
+  function loadLive() {
+    fetch("/api/setup/webhook-live", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        setLive(data);
+        if (data.recentWebhooks?.length) {
+          setMeta((m) =>
+            m ? { ...m, recentWebhooks: data.recentWebhooks } : m
+          );
+        }
+      })
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadMeta();
   }, []);
+
+  useEffect(() => {
+    if (!liveMonitor) return;
+    loadLive();
+    const id = setInterval(() => {
+      loadLive();
+      loadMeta();
+    }, 4000);
+    return () => clearInterval(id);
+  }, [liveMonitor]);
 
   async function runTest(
     action: "verify" | "simulate" | "simulate_live",
@@ -107,6 +150,72 @@ export default function WebhookTestPage() {
           portal.
         </p>
       </div>
+
+      <Card className="border-emerald-200">
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Radio
+                className={cn(
+                  "h-5 w-5",
+                  liveMonitor ? "text-emerald-600 animate-pulse" : "text-slate-400"
+                )}
+              />
+              Live monitor
+            </CardTitle>
+            <CardDescription>
+              Refreshes every 4s. Send a WhatsApp message, then watch for a new
+              row and <strong>sent | ai</strong> in the result.
+            </CardDescription>
+          </div>
+          <Button
+            variant={liveMonitor ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLiveMonitor((v) => !v)}
+          >
+            {liveMonitor ? "On" : "Off"}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {live ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <LivePill ok={live.serviceRoleOk} label="Service role" />
+                <LivePill ok={live.businessCount > 0} label="Business row" />
+                <LivePill ok={live.readyForAutoReply} label="Auto-reply ready" />
+              </div>
+              <p className="text-slate-600">
+                Last Meta call:{" "}
+                <strong>
+                  {live.lastWebhookAt
+                    ? new Date(live.lastWebhookAt).toLocaleString()
+                    : "Never — Meta is not reaching your server"}
+                </strong>
+              </p>
+              {live.lastWebhookAt && (
+                <p className="text-slate-600">
+                  Messages in payload: <strong>{live.lastWebhookMessages}</strong>
+                  {live.lastWebhookResult && (
+                    <> · Result: <code className="text-xs">{live.lastWebhookResult}</code></>
+                  )}
+                </p>
+              )}
+              {live.lastWebhookWarning && (
+                <p className="text-amber-800">Warning: {live.lastWebhookWarning}</p>
+              )}
+              {live.hints?.length > 0 && (
+                <ul className="list-disc space-y-1 pl-5 text-amber-900">
+                  {live.hints.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p className="text-slate-500">Loading live status…</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -329,6 +438,19 @@ export default function WebhookTestPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function LivePill({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-1 text-xs font-medium",
+        ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+      )}
+    >
+      {label}
+    </span>
   );
 }
 

@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #f4f7fb;
   --foreground: #0f172a;
-  --sidebar: #0f172a;
+  --sidebar: #0b1220;
   --primary: #059669;
   --card: #ffffff;
   --border: #e2e8f0;
   --muted: #64748b;
+  --accent-glow: rgba(16, 185, 129, 0.35);
 }
 
 @theme inline {
@@ -25,4 +26,92 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ——— Dashboard shell ——— */
+
+.dashboard-canvas {
+  background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 40%, #eef2ff 100%);
+}
+
+.dashboard-aurora {
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(16, 185, 129, 0.08), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 90% 0%, rgba(20, 184, 166, 0.06), transparent 45%),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(99, 102, 241, 0.04), transparent 50%);
+}
+
+.dashboard-header {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 4px 24px -8px rgba(15, 23, 42, 0.08);
+}
+
+/* ——— Sidebar ——— */
+
+.sidebar-shell {
+  background: linear-gradient(180deg, #0c1222 0%, #0f172a 42%, #0a1628 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    4px 0 32px -8px rgba(0, 0, 0, 0.35),
+    inset -1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-mesh {
+  background-image:
+    radial-gradient(at 20% 10%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 90%, rgba(20, 184, 166, 0.08) 0px, transparent 45%),
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.02) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(255, 255, 255, 0.02) 75%,
+      transparent 75%,
+      transparent
+    );
+  background-size:
+    100% 100%,
+    100% 100%,
+    12px 12px;
+  opacity: 0.9;
+}
+
+.sidebar-scroll {
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+/* ——— Subtle motion (respect reduced motion) ——— */
+
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard-aurora {
+    animation: aurora-drift 18s ease-in-out infinite alternate;
+  }
+
+  @keyframes aurora-drift {
+    0% {
+      opacity: 0.85;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(-8px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-aurora {
+    animation: none;
+  }
 }

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+
+/** AI + WhatsApp send can take 15–30s; avoid Vercel timeout before reply is sent. */
+export const maxDuration = 60;
 import {
   summarizeWebhookPayload,
   verifyWebhook,
 } from "@/services/whatsapp.service";
-import { rateLimit } from "@/lib/rate-limit";
 import { getWhatsAppVerifyToken } from "@/lib/whatsapp-env";
 import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -28,11 +30,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limit = rateLimit("webhook:whatsapp");
-  if (!limit.ok) {
-    return NextResponse.json({ error: "Rate limit" }, { status: 429 });
-  }
-
   const body = await request.json();
   const summary = summarizeWebhookPayload(body);
   const result = await processWhatsAppWebhook(body);
@@ -59,6 +56,11 @@ export async function POST(request: Request) {
       "[webhook] No business row in database — sign up at /login on this deployment first"
     );
   }
+  if (result.phoneMismatch) {
+    console.error(
+      "[webhook] WHATSAPP_PHONE_ID in env does not match Meta phone_number_id in payload"
+    );
+  }
 
   const first = result.results[0];
   return NextResponse.json({
@@ -68,6 +70,7 @@ export async function POST(request: Request) {
     messagesParsed: result.messagesParsed,
     metaFields: summary.fields,
     phoneNumberIdFromMeta: summary.phoneNumberId,
+    phoneMismatch: result.phoneMismatch ?? false,
     replySent: first?.replySent ?? false,
     replySaved: first?.replySaved ?? false,
     skippedReason: first?.skippedReason,

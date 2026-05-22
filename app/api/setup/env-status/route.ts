@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateBusiness } from "@/lib/business";
 import { getDefaultAiModel } from "@/lib/ai-model";
 import {
   getOpenRouterApiKey,
@@ -29,7 +30,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await getOrCreateBusiness(supabase, user.id);
+
   const phoneId = getWhatsAppPhoneId();
+  const serviceRoleConfigured = !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const waToken = getWhatsAppAccessToken();
   const verifyToken = getWhatsAppVerifyToken();
   const openRouterKey = getOpenRouterApiKey();
@@ -75,7 +79,14 @@ export async function GET() {
       ready: isOpenRouterEnvConfigured(),
     },
     appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || "(not set)",
+    serviceRole: {
+      configured: serviceRoleConfigured,
+      envKey: "SUPABASE_SERVICE_ROLE_KEY",
+      note: "Required for inbound WhatsApp webhooks to save messages and reply.",
+    },
     readyForAutoReply:
-      isWhatsAppEnvConfigured() && isOpenRouterEnvConfigured(),
+      serviceRoleConfigured &&
+      isWhatsAppEnvConfigured() &&
+      isOpenRouterEnvConfigured(),
   });
 }
