@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { AI_MODELS, AI_TONES } from "@/constants";
+import { AI_MODELS, AI_TONES, DEFAULT_AI_MODEL } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
 import type { AiSettings, AiTone } from "@/types";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ export default function AiBotPage() {
   const [settings, setSettings] = useState<Partial<AiSettings>>({
     enabled: true,
     tone: "professional",
-    model: "deepseek/deepseek-chat",
+    model: DEFAULT_AI_MODEL,
     human_handoff: true,
   });
   const [saving, setSaving] = useState(false);
@@ -35,7 +35,12 @@ export default function AiBotPage() {
         .select("*")
         .eq("business_id", business.id)
         .maybeSingle();
-      if (data) setSettings(data);
+      if (data) {
+        setSettings({
+          ...data,
+          model: data.model?.trim() || DEFAULT_AI_MODEL,
+        });
+      }
     }
     load();
   }, []);

@@ -1,4 +1,5 @@
 import type { AiTone } from "@/types";
+import { getDefaultAiModel } from "@/lib/ai-model";
 
 export const APP_NAME = "FlowChat AI";
 
@@ -20,7 +21,10 @@ export const AI_TONES: { value: AiTone; label: string; description: string }[] =
   { value: "luxury", label: "Luxury Brand", description: "Refined and premium tone" },
 ];
 
+export const DEFAULT_AI_MODEL = getDefaultAiModel();
+
 export const AI_MODELS = [
+  { value: DEFAULT_AI_MODEL, label: "Default (from env)" },
   { value: "deepseek/deepseek-chat", label: "DeepSeek" },
   { value: "google/gemini-2.0-flash-001", label: "Gemini" },
   { value: "openai/gpt-4o-mini", label: "GPT" },

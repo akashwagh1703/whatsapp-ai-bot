@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AI_MODELS } from "@/constants";
+import { AI_MODELS, DEFAULT_AI_MODEL } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
 
@@ -24,7 +24,7 @@ export default function SettingsPage() {
   });
   const [api, setApi] = useState({
     openrouter_api_key: "",
-    openrouter_model: "deepseek/deepseek-chat",
+    openrouter_model: DEFAULT_AI_MODEL,
   });
   const [saving, setSaving] = useState(false);
 
@@ -53,7 +53,7 @@ export default function SettingsPage() {
           setApi({
             openrouter_api_key: app.openrouter_api_key ?? "",
             openrouter_model:
-              app.openrouter_model ?? "deepseek/deepseek-chat",
+              app.openrouter_model?.trim() || DEFAULT_AI_MODEL,
           });
         }
       }

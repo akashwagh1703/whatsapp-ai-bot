@@ -65,7 +65,7 @@ create table if not exists public.ai_settings (
   enabled boolean not null default true,
   prompt text default 'You are a helpful business assistant.',
   tone text not null default 'professional' check (tone in ('professional', 'friendly', 'sales', 'luxury')),
-  model text not null default 'deepseek/deepseek-chat',
+  model text not null default 'minimax/minimax-m2.5:free',
   business_knowledge text,
   human_handoff boolean not null default true,
   updated_at timestamptz not null default now()

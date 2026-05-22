@@ -17,6 +17,7 @@ import {
 } from "@/services/ai.service";
 import { dispatchIntegrationWebhook } from "@/services/webhook-dispatch.service";
 import { rateLimit } from "@/lib/rate-limit";
+import { resolveAiModel } from "@/lib/ai-model";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -181,10 +182,10 @@ export async function POST(request: Request) {
       msg.content
     ) {
       const systemPrompt = buildSystemPrompt(aiSettings);
-      const model =
-        aiSettings.model ||
-        appSettings?.openrouter_model ||
-        "deepseek/deepseek-chat";
+      const model = resolveAiModel(
+        aiSettings.model,
+        appSettings?.openrouter_model
+      );
 
       const { data: history } = await supabase
         .from("messages")
