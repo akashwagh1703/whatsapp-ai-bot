@@ -23,7 +23,7 @@ export default function AnalyticsPage() {
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const res = await fetch("/api/analytics/dashboard");
+      const res = await fetch("/api/analytics/dashboard", { credentials: "include" });
       return res.json();
     },
   });
@@ -31,7 +31,7 @@ export default function AnalyticsPage() {
   const { data: series } = useQuery({
     queryKey: ["analytics-series"],
     queryFn: async () => {
-      const res = await fetch("/api/analytics/series");
+      const res = await fetch("/api/analytics/series", { credentials: "include" });
       return res.json();
     },
   });

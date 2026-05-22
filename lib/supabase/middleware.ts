@@ -33,9 +33,13 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/forgot-password");
 
+  // API routes must not redirect to /login — handlers return 401 JSON.
+  // Redirecting breaks client fetch() (HTML login page instead of JSON).
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+
   const isPublicRoute =
     isAuthRoute ||
-    request.nextUrl.pathname.startsWith("/api/webhooks") ||
+    isApiRoute ||
     request.nextUrl.pathname === "/";
 
   if (!user && !isPublicRoute) {

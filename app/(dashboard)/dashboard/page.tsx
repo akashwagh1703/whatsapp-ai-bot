@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const res = await fetch("/api/analytics/dashboard");
+      const res = await fetch("/api/analytics/dashboard", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load stats");
       return res.json();
     },
@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const { data: series } = useQuery({
     queryKey: ["analytics-series"],
     queryFn: async () => {
-      const res = await fetch("/api/analytics/series");
+      const res = await fetch("/api/analytics/series", { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

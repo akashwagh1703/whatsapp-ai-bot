@@ -118,6 +118,7 @@ export default function InboxPage() {
     setSending(true);
     const res = await fetch("/api/messages/send", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         conversationId: selectedId,
