@@ -42,6 +42,17 @@ Use this table so local dev, production, and Meta Console stay in sync.
 
 When `WHATSAPP_APP_SECRET` is set, `POST /api/webhooks/whatsapp` requires header `X-Hub-Signature-256` (Meta sends this automatically). Unsigned requests return **401**. If the secret is unset, verification is skipped with a server warning (not recommended for production).
 
+### Why “Webhook test” works but real WhatsApp does not
+
+| | Internal simulate (`/api/setup/webhook-test`) | Real customer message (Meta → `/api/webhooks/whatsapp`) |
+|--|--|--|
+| Who calls | Your logged-in dashboard | Meta servers |
+| Signature | **Skipped** | **Required** when `WHATSAPP_APP_SECRET` is set |
+| `phone_number_id` in payload | Copied from your env (always matches) | From Meta (must match the number customers message) |
+| Which server | The server you are browsing (local or Vercel) | **Only** the URL in Meta webhook settings (usually Production) |
+
+**Most common root causes:** (1) `WHATSAPP_APP_SECRET` wrong on Vercel → 401, see `signature_rejected` in Webhook test → Recent calls; (2) internal test on localhost while Meta points to production with different/missing env; (3) `WHATSAPP_PHONE_ID` is WABA ID instead of Phone number ID; (4) Meta webhook not subscribed to **messages**; (5) App in Development mode — sender not on Meta test recipient list.
+
 ---
 
 ## 1. Supabase

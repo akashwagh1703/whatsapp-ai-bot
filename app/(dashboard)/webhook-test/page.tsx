@@ -151,6 +151,35 @@ export default function WebhookTestPage() {
         </p>
       </div>
 
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardHeader>
+          <CardTitle className="text-amber-950">Why internal test works but real WhatsApp does not</CardTitle>
+          <CardDescription className="text-amber-900/80">
+            These are different code paths — use Live monitor after a real message.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-amber-950">
+          <p>
+            <strong>Internal simulate</strong> calls your app directly (no Meta). It
+            builds the payload using your env <code className="text-xs">WHATSAPP_PHONE_ID</code>,
+            so phone ID always matches and <strong>no signature</strong> is checked.
+          </p>
+          <p>
+            <strong>Real WhatsApp</strong> POSTs from Meta to your public URL with{" "}
+            <code className="text-xs">X-Hub-Signature-256</code>. If{" "}
+            <code className="text-xs">WHATSAPP_APP_SECRET</code> on Vercel ≠ Meta App
+            Secret → <strong>401</strong> (nothing saved, no reply). If env phone ID ≠
+            Meta&apos;s <code className="text-xs">phone_number_id</code> in the payload →
+            replies failed before a recent fix; redeploy after pull.
+          </p>
+          <p>
+            Run <strong>POST to live endpoint</strong> below (with signature) to test
+            the same path as Meta. Check <strong>Recent Meta webhook calls</strong> for{" "}
+            <code className="text-xs">signature_rejected</code>.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card className="border-emerald-200">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>

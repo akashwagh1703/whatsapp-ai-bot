@@ -73,6 +73,7 @@ export async function GET() {
     messages_count?: number;
     first_result?: string;
     warning?: string;
+    fields?: string;
   } | undefined;
 
   return NextResponse.json({
@@ -112,9 +113,19 @@ function buildHints(ctx: {
   whatsappReady: boolean;
   openrouterReady: boolean;
   aiEnabled: boolean;
-  last?: { messages_count?: number; first_result?: string; warning?: string };
+  last?: {
+    messages_count?: number;
+    first_result?: string;
+    warning?: string;
+    fields?: string;
+  };
 }) {
   const hints: string[] = [];
+  if (ctx.last?.fields === "signature_rejected") {
+    hints.push(
+      "ROOT CAUSE: Meta POST was rejected (401). Fix WHATSAPP_APP_SECRET on Vercel Production — must match Meta App Secret exactly, then redeploy. Internal webhook test does NOT use signature."
+    );
+  }
   if (!ctx.serviceRoleOk) {
     hints.push("Set SUPABASE_SERVICE_ROLE_KEY on Vercel Production.");
   }
@@ -145,6 +156,10 @@ function buildHints(ctx: {
     hints.push("Message received but WhatsApp send failed — check token and test phone.");
   } else if (ctx.last.first_result?.includes("skipped")) {
     hints.push("Message received but auto-reply was skipped — check AI / Human mode.");
+  } else if (ctx.last.warning?.includes("phone_number_id")) {
+    hints.push(
+      "Phone ID mismatch was detected — update WHATSAPP_PHONE_ID in Vercel to match Meta → API Setup → Phone number ID."
+    );
   }
   return hints;
 }

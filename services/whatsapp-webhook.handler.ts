@@ -218,25 +218,26 @@ export async function processWhatsAppWebhook(
     .eq("business_id", businessId)
     .maybeSingle();
 
-  const phoneId = getWhatsAppPhoneId();
+  const envPhoneId = getWhatsAppPhoneId();
+  const metaPhoneId = metaSummary.phoneNumberId;
   const token = getWhatsAppAccessToken();
   const openRouterKey = openRouterCfg.apiKey;
 
-  if (resolved.warning === "phone_id_mismatch" && phoneId) {
-    console.error("[webhook] phone_number_id mismatch — skipping processing", {
-      meta: metaSummary.phoneNumberId,
-      env: phoneId,
+  let effectivePhoneId = metaPhoneId || envPhoneId;
+  const phoneMismatch =
+    !!metaPhoneId && !!envPhoneId && metaPhoneId !== envPhoneId;
+
+  if (phoneMismatch) {
+    console.warn(
+      "[webhook] WHATSAPP_PHONE_ID env differs from Meta payload — using Meta phone_number_id",
+      { meta: metaPhoneId, env: envPhoneId }
+    );
+    effectivePhoneId = metaPhoneId;
+    await supabase.from("app_settings").upsert({
+      business_id: businessId,
+      whatsapp_phone_id: metaPhoneId,
+      updated_at: new Date().toISOString(),
     });
-    return {
-      ok: false,
-      messagesParsed: incoming.length,
-      error:
-        "WHATSAPP_PHONE_ID does not match Meta phone_number_id in webhook payload",
-      businessId,
-      phoneMismatch: true,
-      results: [],
-      env,
-    };
   }
 
   const results: WebhookMessageResult[] = [];
@@ -438,7 +439,7 @@ export async function processWhatsAppWebhook(
           to: msg.from,
           replyText,
           replySource,
-          phoneId,
+          phoneId: effectivePhoneId,
           token,
           isAi: replySource === "ai" || replySource === "fallback",
         });
@@ -463,7 +464,7 @@ export async function processWhatsAppWebhook(
     ok: true,
     messagesParsed: incoming.length,
     businessId,
-    phoneMismatch: resolved.warning === "phone_id_mismatch",
+    phoneMismatch,
     results,
     env,
   };

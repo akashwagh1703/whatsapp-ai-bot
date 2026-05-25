@@ -42,8 +42,35 @@ export async function POST(request: Request) {
     const signature = request.headers.get("x-hub-signature-256");
     if (!verifyMetaWebhookSignature(rawBody, signature, appSecret)) {
       console.warn("[webhook] Invalid or missing X-Hub-Signature-256");
+      try {
+        const supabase = await createServiceClient();
+        await logWebhookEvent(supabase, {
+          fields: "signature_rejected",
+          messagesCount: 0,
+          phoneNumberId: null,
+          result: {
+            ok: false,
+            messagesParsed: 0,
+            warning: "invalid_signature",
+            results: [],
+            env: {
+              hasPhoneId: false,
+              hasWaToken: false,
+              hasOpenRouter: false,
+              openRouterModel: "",
+              hasServiceRole: true,
+              aiEnabled: false,
+            },
+          },
+        });
+      } catch {
+        // ignore
+      }
       return NextResponse.json(
-        { error: "Invalid signature" },
+        {
+          error: "Invalid signature",
+          hint: "WHATSAPP_APP_SECRET on this server must match Meta → App settings → Basic → App secret. Internal webhook tests skip this check.",
+        },
         { status: 401 }
       );
     }
