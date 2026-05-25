@@ -68,6 +68,11 @@ export default function ForgotPasswordPage() {
               <ArrowLeft className="h-4 w-4" />
               Back to sign in
             </Link>
+            <p className="mt-6 text-center text-xs text-slate-500">
+              <Link href="/privacy" className="text-brand font-medium hover:opacity-80">
+                Privacy Policy
+              </Link>
+            </p>
           </CardContent>
         </Card>
       </div>

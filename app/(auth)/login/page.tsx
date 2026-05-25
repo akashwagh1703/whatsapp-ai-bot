@@ -100,6 +100,18 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
+            <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
+              By signing in, you agree to our{" "}
+              <Link
+                href="/privacy"
+                className="text-brand font-medium hover:opacity-80"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </CardContent>
         </Card>
       </div>
