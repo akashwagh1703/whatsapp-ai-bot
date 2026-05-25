@@ -108,7 +108,13 @@ OPENROUTER_DEFAULT_MODEL=minimax/minimax-m2.5:free
 
 ---
 
-## 5. OpenRouter (AI)
+## 5. Webhook debugging
+
+See **[docs/WEBHOOK_DEBUG.md](docs/WEBHOOK_DEBUG.md)** for log prefixes, test steps, sync mode, and failure table.
+
+---
+
+## 6. OpenRouter (AI)
 
 1. [openrouter.ai](https://openrouter.ai) → API key
 2. **AI Bot** → turn **AI Assistant ON** → add prompt → save

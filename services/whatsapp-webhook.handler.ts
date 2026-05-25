@@ -1,22 +1,23 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { ensureAiSettings } from "@/lib/business";
-import { resolveAiModel } from "@/lib/ai-model";
 import {
-  getOpenRouterApiKey,
+  webhookLog,
+  webhookWarn,
+  webhookError,
+  maskPhone,
+  toLogData,
+} from "@/lib/webhook-debug";
+import {
   getOpenRouterConfig,
   logOpenRouterEnv,
 } from "@/lib/openrouter-env";
 import {
   getWhatsAppAccessToken,
   getWhatsAppPhoneId,
+  validateWhatsAppEnvForWebhook,
 } from "@/lib/whatsapp-env";
 import { resolveWebhookBusinessId } from "@/lib/resolve-webhook-business";
-import { summarizeWebhookPayload } from "@/services/whatsapp.service";
-import {
-  buildSystemPrompt,
-  generateAiReply,
-  shouldHandoffToHuman,
-} from "@/services/ai.service";
+import { resolveAutoReply } from "@/services/reply-resolver.service";
 import {
   bumpAnalytics,
   messageExistsByWaId,
@@ -27,12 +28,13 @@ import { dispatchIntegrationWebhook } from "@/services/webhook-dispatch.service"
 import {
   fetchWhatsAppMediaUrl,
   parseIncomingWebhook,
-  sendWhatsAppText,
+  sendWhatsAppMessage,
+  snapshotWebhookPayload,
+  summarizeWebhookPayload,
 } from "@/services/whatsapp.service";
+import type { AutoReplySource } from "@/types/whatsapp-webhook";
+import type { Conversation } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-const HANDOFF_REPLY =
-  "Thanks for your message. A team member will assist you shortly.";
 
 export interface WebhookMessageResult {
   from: string;
@@ -42,17 +44,10 @@ export interface WebhookMessageResult {
   replySent: boolean;
   replySaved: boolean;
   replyPreview?: string;
-  replySource?:
-    | "keyword"
-    | "welcome"
-    | "away"
-    | "ai"
-    | "fallback"
-    | "handoff"
-    | "duplicate"
-    | "none";
+  replySource?: AutoReplySource | "duplicate";
   skippedReason?: string;
   error?: string;
+  whatsAppMessageId?: string;
 }
 
 export interface WebhookProcessResult {
@@ -62,6 +57,7 @@ export interface WebhookProcessResult {
   error?: string;
   businessId?: string;
   phoneMismatch?: boolean;
+  envValidation?: { valid: boolean; issues: string[] };
   results: WebhookMessageResult[];
   env: {
     hasPhoneId: boolean;
@@ -80,12 +76,12 @@ async function deliverReply(
     conversationId: string;
     to: string;
     replyText: string;
-    replySource: WebhookMessageResult["replySource"];
+    replySource: AutoReplySource;
     phoneId: string;
     token: string;
     isAi: boolean;
   }
-): Promise<{ sent: boolean; error?: string }> {
+): Promise<{ sent: boolean; error?: string; whatsAppMessageId?: string }> {
   await saveMessage(supabase, {
     conversationId: params.conversationId,
     direction: "outbound",
@@ -99,35 +95,30 @@ async function deliverReply(
     params.isAi ? "ai_replies" : "human_replies"
   );
 
-  if (!params.phoneId || !params.token) {
-    return {
-      sent: false,
-      error: "missing WHATSAPP_PHONE_ID or WHATSAPP_TOKEN in env",
-    };
+  const sendResult = await sendWhatsAppMessage({
+    phoneId: params.phoneId,
+    token: params.token,
+    to: params.to,
+    text: params.replyText,
+  });
+
+  if (!sendResult.ok) {
+    return { sent: false, error: sendResult.error };
   }
 
-  try {
-    await sendWhatsAppText({
-      phoneId: params.phoneId,
-      token: params.token,
-      to: params.to,
-      text: params.replyText,
-    });
-    return { sent: true };
-  } catch (e) {
-    return {
-      sent: false,
-      error: e instanceof Error ? e.message : "WhatsApp send failed",
-    };
-  }
+  return {
+    sent: true,
+    whatsAppMessageId: sendResult.messageId,
+  };
 }
 
 export async function processWhatsAppWebhook(
   body: unknown
 ): Promise<WebhookProcessResult> {
-  const incoming = parseIncomingWebhook(
-    body as Parameters<typeof parseIncomingWebhook>[0]
-  );
+  webhookLog("process_start", snapshotWebhookPayload(body));
+
+  const envCheck = validateWhatsAppEnvForWebhook();
+  const incoming = parseIncomingWebhook(body);
 
   const openRouterCfg = getOpenRouterConfig();
   const env = {
@@ -135,21 +126,31 @@ export async function processWhatsAppWebhook(
     hasWaToken: !!getWhatsAppAccessToken(),
     hasOpenRouter: openRouterCfg.keyConfigured,
     openRouterModel: openRouterCfg.model,
-    hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
+    hasServiceRole: envCheck.hasServiceRole,
     aiEnabled: false,
   };
+
+  if (!envCheck.valid) {
+    webhookWarn("env_validation_failed", { issues: envCheck.issues });
+  }
 
   if (incoming.length > 0) {
     logOpenRouterEnv("webhook inbound");
   }
 
   if (!incoming.length) {
+    const summary = summarizeWebhookPayload(body);
+    webhookWarn("no_inbound_messages", toLogData(summary));
     return {
       ok: true,
       messagesParsed: 0,
-      warning: "no_messages_in_payload",
+      warning:
+        summary.statusCount > 0
+          ? "status_only_payload"
+          : "no_messages_in_payload",
       results: [],
       env,
+      envValidation: { valid: envCheck.valid, issues: envCheck.issues },
     };
   }
 
@@ -157,6 +158,7 @@ export async function processWhatsAppWebhook(
   try {
     supabase = await createServiceClient();
   } catch (e) {
+    webhookError("supabase_client_failed", e);
     return {
       ok: false,
       messagesParsed: incoming.length,
@@ -166,12 +168,11 @@ export async function processWhatsAppWebhook(
           : "Supabase service client failed — check SUPABASE_SERVICE_ROLE_KEY",
       results: [],
       env,
+      envValidation: { valid: envCheck.valid, issues: envCheck.issues },
     };
   }
 
-  const metaSummary = summarizeWebhookPayload(
-    body as Parameters<typeof summarizeWebhookPayload>[0]
-  );
+  const metaSummary = summarizeWebhookPayload(body);
 
   const resolved = await resolveWebhookBusinessId(
     supabase,
@@ -179,22 +180,27 @@ export async function processWhatsAppWebhook(
   );
 
   if (!resolved.businessId) {
+    webhookError("no_business", new Error("no_business"), {
+      metaPhoneId: metaSummary.phoneNumberId,
+    });
     return {
       ok: false,
       messagesParsed: incoming.length,
       warning: "no_business",
       results: [],
       env,
-      phoneMismatch: resolved.warning === "phone_id_mismatch",
+      envValidation: { valid: envCheck.valid, issues: envCheck.issues },
     };
   }
 
   const businessId = resolved.businessId;
+  webhookLog("business_resolved", { businessId, metaPhoneId: metaSummary.phoneNumberId });
 
   let aiSettings;
   try {
     aiSettings = await ensureAiSettings(supabase, businessId);
   } catch (e) {
+    webhookError("ai_settings_failed", e);
     return {
       ok: false,
       messagesParsed: incoming.length,
@@ -221,17 +227,13 @@ export async function processWhatsAppWebhook(
   const envPhoneId = getWhatsAppPhoneId();
   const metaPhoneId = metaSummary.phoneNumberId;
   const token = getWhatsAppAccessToken();
-  const openRouterKey = openRouterCfg.apiKey;
 
   let effectivePhoneId = metaPhoneId || envPhoneId;
   const phoneMismatch =
     !!metaPhoneId && !!envPhoneId && metaPhoneId !== envPhoneId;
 
-  if (phoneMismatch) {
-    console.warn(
-      "[webhook] WHATSAPP_PHONE_ID env differs from Meta payload — using Meta phone_number_id",
-      { meta: metaPhoneId, env: envPhoneId }
-    );
+  if (phoneMismatch && metaPhoneId) {
+    webhookWarn("phone_id_sync", { meta: metaPhoneId, env: envPhoneId });
     effectivePhoneId = metaPhoneId;
     await supabase.from("app_settings").upsert({
       business_id: businessId,
@@ -240,9 +242,22 @@ export async function processWhatsAppWebhook(
     });
   }
 
+  webhookLog("processing_messages", {
+    count: incoming.length,
+    effectivePhoneId,
+    aiEnabled: env.aiEnabled,
+  });
+
   const results: WebhookMessageResult[] = [];
 
   for (const msg of incoming) {
+    webhookLog("inbound_message", {
+      from: maskPhone(msg.from),
+      type: msg.type,
+      waMessageId: msg.waMessageId,
+      contentLength: msg.content?.length ?? 0,
+    });
+
     const item: WebhookMessageResult = {
       from: msg.from,
       contactName: msg.contactName,
@@ -256,6 +271,7 @@ export async function processWhatsAppWebhook(
       if (msg.waMessageId && (await messageExistsByWaId(supabase, msg.waMessageId))) {
         item.skippedReason = "duplicate_wa_message_id";
         item.replySource = "duplicate";
+        webhookWarn("duplicate_message", { waMessageId: msg.waMessageId });
         results.push(item);
         continue;
       }
@@ -307,40 +323,15 @@ export async function processWhatsAppWebhook(
         { conversationId: conversation.id, from: msg.from }
       );
 
-      let replyText: string | null = null;
-      let replySource: WebhookMessageResult["replySource"] = "none";
+      const resolvedReply = await resolveAutoReply(supabase, {
+        businessId,
+        conversation: conversation as Conversation,
+        msg,
+        aiSettings,
+        automations,
+      });
 
-      const keywords = (automations?.keyword_replies ?? []) as Array<{
-        keyword: string;
-        reply: string;
-      }>;
-      const matched = keywords.find((k) =>
-        msg.content?.toLowerCase().includes(k.keyword.toLowerCase())
-      );
-
-      if (matched) {
-        replyText = matched.reply;
-        replySource = "keyword";
-      } else if (
-        automations?.away_enabled &&
-        automations.away_message?.trim()
-      ) {
-        replyText = automations.away_message.trim();
-        replySource = "away";
-      } else if (automations?.welcome_enabled && automations.welcome_message) {
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("conversation_id", conversation.id);
-        if ((count ?? 0) <= 1) {
-          replyText = automations.welcome_message;
-          replySource = "welcome";
-        }
-      }
-
-      const handoff = msg.content && shouldHandoffToHuman(msg.content);
-
-      if (handoff) {
+      if (resolvedReply.source === "handoff") {
         await supabase
           .from("conversations")
           .update({ ai_enabled: false, status: "handoff" })
@@ -363,108 +354,70 @@ export async function processWhatsAppWebhook(
             contactName: msg.contactName,
           }
         );
-
-        if (!replyText) {
-          replyText = HANDOFF_REPLY;
-          replySource = "handoff";
-        }
-      } else if (
-        !replyText &&
-        aiSettings.enabled &&
-        conversation.ai_enabled &&
-        openRouterKey &&
-        msg.content?.trim()
-      ) {
-        const systemPrompt = buildSystemPrompt(aiSettings);
-        const model = resolveAiModel(aiSettings.model);
-        console.info("[webhook] AI reply using model:", model);
-
-        const { data: history } = await supabase
-          .from("messages")
-          .select("direction, content")
-          .eq("conversation_id", conversation.id)
-          .order("created_at", { ascending: true })
-          .limit(10);
-
-        let chatHistory =
-          history?.map((m) => ({
-            role: (m.direction === "inbound" ? "user" : "assistant") as
-              | "user"
-              | "assistant",
-            content: m.content ?? "",
-          })) ?? [];
-
-        const last = chatHistory[chatHistory.length - 1];
-        if (
-          last?.role === "user" &&
-          last.content === msg.content &&
-          chatHistory.length > 0
-        ) {
-          chatHistory = chatHistory.slice(0, -1);
-        }
-
-        try {
-          replyText = await generateAiReply(
-            openRouterKey,
-            model,
-            systemPrompt,
-            msg.content,
-            chatHistory
-          );
-          replySource = "ai";
-        } catch (e) {
-          console.error("[webhook] AI error:", e);
-          replyText =
-            "Thanks for reaching out! A team member will follow up shortly.";
-          replySource = "fallback";
-          item.error = e instanceof Error ? e.message : "AI error";
-        }
-      } else if (!replyText) {
-        const reasons: string[] = [];
-        if (!aiSettings.enabled) reasons.push("AI disabled in AI Bot settings");
-        if (!conversation.ai_enabled)
-          reasons.push("conversation in Human mode (re-enable in Inbox)");
-        if (!openRouterKey) reasons.push("missing OPENROUTER_API_KEY in env");
-        if (!msg.content?.trim() && !msg.mediaType)
-          reasons.push("no text or supported media");
-        if (automations?.away_enabled && !automations.away_message?.trim())
-          reasons.push("away enabled but empty message");
-        item.skippedReason = reasons.join(", ") || "no_reply_rule_matched";
       }
 
-      if (replyText) {
+      if (resolvedReply.text) {
         const delivery = await deliverReply(supabase, {
           businessId,
           conversationId: conversation.id,
           to: msg.from,
-          replyText,
-          replySource,
+          replyText: resolvedReply.text,
+          replySource: resolvedReply.source,
           phoneId: effectivePhoneId,
           token,
-          isAi: replySource === "ai" || replySource === "fallback",
+          isAi: resolvedReply.isAi,
         });
         item.replySaved = true;
-        item.replyPreview = replyText.slice(0, 200);
-        item.replySource = replySource;
+        item.replyPreview = resolvedReply.text.slice(0, 200);
+        item.replySource = resolvedReply.source;
         item.replySent = delivery.sent;
+        item.whatsAppMessageId = delivery.whatsAppMessageId;
+        if (resolvedReply.aiError) item.error = resolvedReply.aiError;
         if (delivery.error) {
           item.error = delivery.error;
-          console.error("[webhook] WhatsApp send failed:", delivery.error);
+          webhookError("deliver_reply_failed", new Error(delivery.error), {
+            from: maskPhone(msg.from),
+            source: resolvedReply.source,
+          });
+        } else {
+          webhookLog("auto_reply_complete", {
+            from: maskPhone(msg.from),
+            source: resolvedReply.source,
+            sent: true,
+          });
         }
+      } else {
+        item.skippedReason = resolvedReply.skippedReason;
+        webhookWarn("auto_reply_skipped", {
+          from: maskPhone(msg.from),
+          reason: resolvedReply.skippedReason,
+        });
       }
     } catch (e) {
       item.error = e instanceof Error ? e.message : "Processing failed";
-      console.error("[webhook] Message processing error:", e);
+      webhookError("message_processing_error", e, { from: maskPhone(msg.from) });
     }
 
     results.push(item);
   }
+
+  webhookLog("process_complete", {
+    messagesParsed: incoming.length,
+    results: results.map((r) => ({
+      from: maskPhone(r.from),
+      replySent: r.replySent,
+      replySource: r.replySource,
+      skippedReason: r.skippedReason,
+      error: r.error,
+    })),
+  });
 
   return {
     ok: true,
     messagesParsed: incoming.length,
     businessId,
     phoneMismatch,
+    envValidation: { valid: envCheck.valid, issues: envCheck.issues },
     results,
     env,
   };

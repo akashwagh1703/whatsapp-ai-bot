@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrCreateBusiness } from "@/lib/business";
 import { rateLimit } from "@/lib/rate-limit";
 import { saveMessage, bumpAnalytics } from "@/services/message.service";
-import { sendWhatsAppText } from "@/services/whatsapp.service";
+import { sendWhatsAppMessage } from "@/services/whatsapp.service";
 import {
   getWhatsAppAccessToken,
   getWhatsAppPhoneId,
@@ -60,17 +60,16 @@ export async function POST(request: Request) {
   } else if (!conversation.contact?.phone) {
     whatsappError = "Contact phone number missing.";
   } else {
-    try {
-      await sendWhatsAppText({
-        phoneId,
-        token,
-        to: conversation.contact.phone,
-        text: body.data.content,
-      });
+    const sendResult = await sendWhatsAppMessage({
+      phoneId,
+      token,
+      to: conversation.contact.phone,
+      text: body.data.content,
+    });
+    if (sendResult.ok) {
       whatsappSent = true;
-    } catch (e) {
-      whatsappError =
-        e instanceof Error ? e.message : "WhatsApp send failed";
+    } else {
+      whatsappError = sendResult.error ?? "WhatsApp send failed";
       console.error("[messages/send]", whatsappError);
     }
   }

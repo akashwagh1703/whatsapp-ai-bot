@@ -30,3 +30,43 @@ export function isWebhookSignatureEnforced(): boolean {
 export function hasCustomVerifyToken(): boolean {
   return !!process.env.WHATSAPP_VERIFY_TOKEN?.trim();
 }
+
+/** Optional generic auto-reply when no rule/AI matches (debug + safety net). */
+export function getWhatsAppFallbackReply(): string {
+  return process.env.WHATSAPP_FALLBACK_REPLY?.trim() ?? "";
+}
+
+export interface WhatsAppEnvValidation {
+  valid: boolean;
+  issues: string[];
+  phoneId: string;
+  hasToken: boolean;
+  hasServiceRole: boolean;
+}
+
+/** Validates env required for inbound webhook auto-reply on this server. */
+export function validateWhatsAppEnvForWebhook(): WhatsAppEnvValidation {
+  const issues: string[] = [];
+  const phoneId = getWhatsAppPhoneId();
+  const hasToken = !!getWhatsAppAccessToken();
+  const hasServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  if (!phoneId) issues.push("WHATSAPP_PHONE_ID is missing");
+  if (!hasToken) issues.push("WHATSAPP_TOKEN is missing");
+  if (!hasServiceRole) {
+    issues.push("SUPABASE_SERVICE_ROLE_KEY is missing (webhook cannot save or reply)");
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    phoneId,
+    hasToken,
+    hasServiceRole,
+  };
+}
+
+/** Sync processing for local debug; default on Vercel is fast 200 + background work. */
+export function shouldAwaitWebhookProcessing(): boolean {
+  return process.env.WEBHOOK_AWAIT_PROCESSING === "true";
+}
