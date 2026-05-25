@@ -66,7 +66,13 @@ export function validateWhatsAppEnvForWebhook(): WhatsAppEnvValidation {
   };
 }
 
-/** Sync processing for local debug; default on Vercel is fast 200 + background work. */
+/**
+ * Process webhook before returning HTTP response (recommended).
+ * Async background mode is opt-in via WEBHOOK_ASYNC_PROCESSING=true — can drop
+ * replies on serverless if the runtime ends before after() finishes.
+ */
 export function shouldAwaitWebhookProcessing(): boolean {
-  return process.env.WEBHOOK_AWAIT_PROCESSING === "true";
+  if (process.env.WEBHOOK_ASYNC_PROCESSING === "true") return false;
+  if (process.env.WEBHOOK_AWAIT_PROCESSING === "true") return true;
+  return true;
 }

@@ -17,8 +17,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { logWebhookEvent } from "@/lib/webhook-log";
 import { webhookLog, webhookWarn, webhookError } from "@/lib/webhook-debug";
 
-/** AI + WhatsApp send can take 15–30s; extended on Vercel via after(). */
+/** AI + WhatsApp send can take 15–30s; Meta allows ~20s before retry. */
 export const maxDuration = 60;
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

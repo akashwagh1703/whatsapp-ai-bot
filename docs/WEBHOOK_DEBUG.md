@@ -6,7 +6,7 @@
 User WhatsApp message
   → Meta POST /api/webhooks/whatsapp
   → Signature verify (if WHATSAPP_APP_SECRET set)
-  → Fast 200 { status: "accepted" }  (Vercel: work continues in after())
+  → Process + send reply, then HTTP 200 (default — reliable on Vercel)
   → parseIncomingWebhook()
   → Save to Inbox (Supabase service role)
   → resolveAutoReply()  (keyword → away → welcome → handoff → AI → env fallback)
@@ -45,7 +45,7 @@ Stages:
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Save messages + reply |
 | `OPENROUTER_API_KEY` | For AI | AI auto-reply |
 | `WHATSAPP_FALLBACK_REPLY` | Optional | Text when no rule/AI matches |
-| `WEBHOOK_AWAIT_PROCESSING` | Optional | `true` = wait for full result in POST body (local debug) |
+| `WEBHOOK_ASYNC_PROCESSING` | Optional | `true` = fast 200 only (may drop replies on serverless — not recommended) |
 
 ## Testing steps
 
@@ -76,13 +76,7 @@ Expect body: `test123`
 
 ### 5. Sync mode (full JSON response)
 
-Local `.env.local`:
-
-```env
-WEBHOOK_AWAIT_PROCESSING=true
-```
-
-Or send header: `X-Webhook-Sync: 1` on POST to `/api/webhooks/whatsapp`.
+Processing is **synchronous by default** (reply sent before HTTP 200). For debugging, send header `X-Webhook-Sync: 1` on POST to `/api/webhooks/whatsapp`.
 
 ### 6. Verify send API manually
 
