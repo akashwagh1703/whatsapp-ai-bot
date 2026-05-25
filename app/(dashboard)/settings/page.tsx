@@ -91,6 +91,7 @@ export default function SettingsPage() {
                 <p>WHATSAPP_PHONE_ID=</p>
                 <p>WHATSAPP_TOKEN=</p>
                 <p>WHATSAPP_VERIFY_TOKEN=</p>
+                <p>WHATSAPP_APP_SECRET=</p>
                 <p>OPENROUTER_API_KEY=</p>
                 <p>OPENROUTER_DEFAULT_MODEL=</p>
                 <p>NEXT_PUBLIC_APP_URL=</p>

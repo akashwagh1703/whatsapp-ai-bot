@@ -21,12 +21,25 @@ export async function upsertContactAndConversation(
     .select()
     .single();
 
+  if (!contact) {
+    throw new Error("Failed to upsert contact");
+  }
+
+  const { data: existingConversation } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("contact_id", contact.id)
+    .maybeSingle();
+
+  const isNewConversation = !existingConversation;
+
   const { data: conversation } = await supabase
     .from("conversations")
     .upsert(
       {
         business_id: businessId,
-        contact_id: contact!.id,
+        contact_id: contact.id,
         last_message_at: new Date().toISOString(),
       },
       { onConflict: "business_id,contact_id" }
@@ -34,7 +47,11 @@ export async function upsertContactAndConversation(
     .select("*, contact:contacts(*)")
     .single();
 
-  return { contact: contact!, conversation: conversation! };
+  if (!conversation) {
+    throw new Error("Failed to upsert conversation");
+  }
+
+  return { contact, conversation, isNewConversation };
 }
 
 export async function saveMessage(

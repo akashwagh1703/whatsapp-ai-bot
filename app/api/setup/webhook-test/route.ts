@@ -3,7 +3,13 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getWebhookUrl } from "@/lib/app-url";
 import { verifyWebhook } from "@/services/whatsapp.service";
-import { getWhatsAppVerifyToken, hasCustomVerifyToken } from "@/lib/whatsapp-env";
+import { signMetaWebhookBody } from "@/lib/meta-webhook-signature";
+import {
+  getWhatsAppAppSecret,
+  getWhatsAppVerifyToken,
+  hasCustomVerifyToken,
+  isWebhookSignatureEnforced,
+} from "@/lib/whatsapp-env";
 import { isOpenRouterEnvConfigured } from "@/lib/openrouter-env";
 import {
   getWhatsAppAccessToken,
@@ -147,10 +153,20 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    const rawBody = JSON.stringify(payload);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (isWebhookSignatureEnforced()) {
+      headers["X-Hub-Signature-256"] = signMetaWebhookBody(
+        rawBody,
+        getWhatsAppAppSecret()
+      );
+    }
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      headers,
+      body: rawBody,
     });
     const body = await res.json().catch(() => ({}));
     return NextResponse.json({
@@ -159,7 +175,10 @@ export async function POST(request: Request) {
       httpStatus: res.status,
       httpBody: body,
       payload,
-      hint: "Check Inbox — live endpoint does not return detailed diagnostics",
+      signatureSent: isWebhookSignatureEnforced(),
+      hint: isWebhookSignatureEnforced()
+        ? "Check Inbox — live endpoint does not return detailed diagnostics"
+        : "WHATSAPP_APP_SECRET not set on server — live POST may be rejected once secret is added on Vercel",
     });
   }
 

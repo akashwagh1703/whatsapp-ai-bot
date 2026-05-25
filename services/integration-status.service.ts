@@ -5,6 +5,7 @@ import { isOpenRouterEnvConfigured } from "@/lib/openrouter-env";
 import {
   getWhatsAppVerifyToken,
   hasCustomVerifyToken,
+  isWebhookSignatureEnforced,
   isWhatsAppEnvConfigured,
 } from "@/lib/whatsapp-env";
 
@@ -87,8 +88,8 @@ export async function getIntegrationStatus(
       id: "meta_webhook",
       label: "Meta webhook",
       description:
-        "Callback URL + verify token in Meta (WHATSAPP_VERIFY_TOKEN or flowchat-verify).",
-      ok: true,
+        "Callback URL, verify token, messages field, and WHATSAPP_APP_SECRET on Vercel.",
+      ok: isWebhookSignatureEnforced(),
       actionHref: "/integrations#meta-webhook",
       actionLabel: "Copy webhook details",
     },
@@ -103,6 +104,7 @@ export async function getIntegrationStatus(
       "WHATSAPP_PHONE_ID",
       "WHATSAPP_TOKEN",
       "WHATSAPP_VERIFY_TOKEN",
+      "WHATSAPP_APP_SECRET",
     ],
     openrouterEnvVars: ["OPENROUTER_API_KEY", "OPENROUTER_DEFAULT_MODEL"],
     defaultModel: getDefaultAiModel(),

@@ -130,6 +130,11 @@ function buildHints(ctx: {
   if (!ctx.aiEnabled) {
     hints.push("Enable AI in AI Bot settings.");
   }
+  if (!process.env.WHATSAPP_APP_SECRET?.trim()) {
+    hints.push(
+      "Set WHATSAPP_APP_SECRET on Production — Meta webhooks will be rejected once the secret is enforced."
+    );
+  }
   if (!ctx.last) {
     hints.push(
       "Send a WhatsApp test message — if lastWebhookAt stays empty, Meta is not calling your webhook URL."

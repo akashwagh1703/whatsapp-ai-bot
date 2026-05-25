@@ -165,6 +165,14 @@ export function SetupChecklist() {
                 </span>
               )}
             </p>
+            <p className="mb-2 text-sm font-medium text-slate-700">App secret (signature)</p>
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <code className="text-xs">WHATSAPP_APP_SECRET</code>
+              <span className="mt-1 block text-slate-500">
+                Meta → App settings → Basic → App secret. Required on Vercel Production
+                so Meta webhook POSTs pass verification.
+              </span>
+            </p>
             <p className="mt-2 text-xs text-slate-500">
               Env vars: {status?.whatsappEnvVars.join(", ")}
             </p>

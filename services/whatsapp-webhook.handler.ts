@@ -221,12 +221,13 @@ export async function processWhatsAppWebhook(
     };
 
     try {
-      const { conversation } = await upsertContactAndConversation(
-        supabase,
-        businessId,
-        msg.from,
-        msg.contactName
-      );
+      const { conversation, isNewConversation } =
+        await upsertContactAndConversation(
+          supabase,
+          businessId,
+          msg.from,
+          msg.contactName
+        );
       item.conversationId = conversation.id;
 
       await saveMessage(supabase, {
@@ -237,7 +238,9 @@ export async function processWhatsAppWebhook(
         waMessageId: msg.waMessageId,
       });
 
-      await bumpAnalytics(supabase, businessId, "conversations");
+      if (isNewConversation) {
+        await bumpAnalytics(supabase, businessId, "conversations");
+      }
 
       await dispatchIntegrationWebhook(
         integrations?.webhook_url,

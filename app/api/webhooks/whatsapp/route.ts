@@ -6,7 +6,12 @@ import {
   summarizeWebhookPayload,
   verifyWebhook,
 } from "@/services/whatsapp.service";
-import { getWhatsAppVerifyToken } from "@/lib/whatsapp-env";
+import {
+  getWhatsAppAppSecret,
+  getWhatsAppVerifyToken,
+  isWebhookSignatureEnforced,
+} from "@/lib/whatsapp-env";
+import { verifyMetaWebhookSignature } from "@/lib/meta-webhook-signature";
 import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logWebhookEvent } from "@/lib/webhook-log";
@@ -30,8 +35,34 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const summary = summarizeWebhookPayload(body);
+  const rawBody = await request.text();
+  const appSecret = getWhatsAppAppSecret();
+
+  if (isWebhookSignatureEnforced()) {
+    const signature = request.headers.get("x-hub-signature-256");
+    if (!verifyMetaWebhookSignature(rawBody, signature, appSecret)) {
+      console.warn("[webhook] Invalid or missing X-Hub-Signature-256");
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 401 }
+      );
+    }
+  } else {
+    console.warn(
+      "[webhook] WHATSAPP_APP_SECRET not set — skipping signature verification (set on Production)"
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const summary = summarizeWebhookPayload(
+    body as Parameters<typeof summarizeWebhookPayload>[0]
+  );
   const result = await processWhatsAppWebhook(body);
 
   try {

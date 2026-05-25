@@ -19,7 +19,9 @@ interface EnvStatusResponse {
     phoneId: EnvRow;
     accessToken: EnvRow;
     verifyToken: EnvRow;
+    appSecret: EnvRow & { note?: string };
     ready: boolean;
+    signatureEnforced?: boolean;
   };
   openrouter: {
     apiKey: EnvRow;
@@ -121,7 +123,13 @@ export function EnvCredentialsStatus() {
           <StatusRow label="Phone ID" row={data.whatsapp.phoneId} />
           <StatusRow label="Access token" row={data.whatsapp.accessToken} />
           <StatusRow label="Verify token" row={data.whatsapp.verifyToken} />
+          <StatusRow label="App secret (webhook signature)" row={data.whatsapp.appSecret} />
         </div>
+        {data.whatsapp.signatureEnforced === false && (
+          <p className="mt-2 text-xs text-amber-700">
+            WHATSAPP_APP_SECRET not set — inbound webhooks are not signature-checked.
+          </p>
+        )}
       </div>
 
       <div>

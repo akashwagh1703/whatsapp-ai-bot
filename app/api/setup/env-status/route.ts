@@ -8,9 +8,11 @@ import {
 } from "@/lib/openrouter-env";
 import {
   getWhatsAppAccessToken,
+  getWhatsAppAppSecret,
   getWhatsAppPhoneId,
   getWhatsAppVerifyToken,
   hasCustomVerifyToken,
+  isWebhookSignatureEnforced,
   isWhatsAppEnvConfigured,
 } from "@/lib/whatsapp-env";
 
@@ -64,7 +66,14 @@ export async function GET() {
         envKey: "WHATSAPP_VERIFY_TOKEN",
         usesDefault: !hasCustomVerifyToken(),
       },
+      appSecret: {
+        configured: isWebhookSignatureEnforced(),
+        preview: getWhatsAppAppSecret() ? "•••• (set)" : "",
+        envKey: "WHATSAPP_APP_SECRET",
+        note: "Meta App Secret — required for X-Hub-Signature-256 on inbound webhooks.",
+      },
       ready: isWhatsAppEnvConfigured(),
+      signatureEnforced: isWebhookSignatureEnforced(),
     },
     openrouter: {
       apiKey: {
