@@ -40,12 +40,12 @@ export function StatCard({
             <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
           )}
         </div>
-        <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600">
+        <div className="bg-brand-soft text-brand rounded-xl p-3">
           <Icon className="h-5 w-5" />
         </div>
       </div>
       {trend && (
-        <p className="mt-4 text-xs font-medium text-emerald-600">{trend}</p>
+        <p className="text-brand mt-4 text-xs font-medium">{trend}</p>
       )}
     </motion.div>
   );

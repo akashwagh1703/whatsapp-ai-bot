@@ -9,6 +9,8 @@ create table if not exists public.businesses (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null default 'My Business',
   logo_url text,
+  primary_color text default '#059669',
+  secondary_color text default '#0d9488',
   email text,
   phone text,
   created_at timestamptz not null default now(),

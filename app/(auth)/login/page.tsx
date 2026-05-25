@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { MessageCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { APP_NAME } from "@/constants";
+import { AuthBrandPanel, AuthMobileBrand } from "@/components/auth/auth-brand-panel";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,30 +39,10 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden flex-1 flex-col justify-between bg-[#0F172A] p-12 text-white lg:flex">
-        <div className="flex items-center gap-3">
-          <MessageCircle className="h-8 w-8 text-emerald-400" />
-          <span className="text-xl font-semibold">{APP_NAME}</span>
-        </div>
-        <div className="max-w-md space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
-            AI-powered customer care
-          </div>
-          <h1 className="text-4xl font-bold leading-tight tracking-tight">
-            Your WhatsApp assistant, always on.
-          </h1>
-          <p className="text-lg text-slate-400">
-            Automate replies, capture leads, and stay in control — without the
-            complexity.
-          </p>
-        </div>
-        <p className="text-sm text-slate-500">
-          Trusted by modern businesses worldwide.
-        </p>
-      </div>
+      <AuthBrandPanel />
 
-      <div className="flex flex-1 items-center justify-center p-6 lg:p-12">
+      <div className="flex flex-1 flex-col items-center justify-center p-6 lg:p-12">
+        <AuthMobileBrand />
         <Card className="w-full max-w-md border-slate-200/80 shadow-lg shadow-slate-200/60">
           <CardHeader>
             <CardTitle className="text-2xl">
@@ -117,10 +96,7 @@ export default function LoginPage() {
                   ? "Already have an account? Sign in"
                   : "New here? Create an account"}
               </button>
-              <Link
-                href="/forgot-password"
-                className="text-emerald-600 hover:text-emerald-700"
-              >
+              <Link href="/forgot-password" className="text-brand hover:opacity-80">
                 Forgot password?
               </Link>
             </div>

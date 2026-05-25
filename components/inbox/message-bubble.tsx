@@ -14,7 +14,7 @@ export function MessageBubble({ message }: { message: Message }) {
         className={cn(
           "max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm",
           isOutbound
-            ? "rounded-br-md bg-emerald-600 text-white"
+            ? "btn-brand rounded-br-md"
             : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
         )}
       >
@@ -29,7 +29,7 @@ export function MessageBubble({ message }: { message: Message }) {
         <div
           className={cn(
             "mt-1 flex items-center gap-2 text-[10px]",
-            isOutbound ? "text-emerald-100" : "text-slate-400"
+            isOutbound ? "text-white/80" : "text-slate-400"
           )}
         >
           <RelativeTime date={message.created_at} />

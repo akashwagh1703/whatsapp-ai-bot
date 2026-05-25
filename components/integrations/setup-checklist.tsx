@@ -55,7 +55,7 @@ export function SetupChecklist() {
       <Card
         className={
           status?.readyForAutoReply
-            ? "border-emerald-200 bg-emerald-50/40"
+            ? "border-[color-mix(in_srgb,var(--brand-primary)_35%,white)] bg-brand-soft/60"
             : "border-amber-200 bg-amber-50/30"
         }
       >
@@ -63,7 +63,7 @@ export function SetupChecklist() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-emerald-600" />
+                <Sparkles className="text-brand h-5 w-5" />
                 Integration setup
               </CardTitle>
               <CardDescription className="mt-1">
@@ -83,7 +83,7 @@ export function SetupChecklist() {
         <CardContent>
           <div className="h-2 overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full rounded-full bg-emerald-500 transition-all"
+              className="bg-brand h-full rounded-full transition-all"
               style={{ width: `${(done / total) * 100}%` }}
             />
           </div>

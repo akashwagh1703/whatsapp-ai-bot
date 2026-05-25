@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { BrandingProvider } from "@/components/providers/branding-provider";
 
 export default function DashboardLayout({
   children,
@@ -7,6 +8,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
+    <BrandingProvider>
     <div className="dashboard-canvas min-h-dvh">
       <Sidebar />
       {/* Main column: offset by fixed sidebar width on desktop */}
@@ -23,5 +25,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </BrandingProvider>
   );
 }

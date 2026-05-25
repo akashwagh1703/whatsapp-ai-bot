@@ -9,6 +9,8 @@ export interface Business {
   user_id: string;
   name: string;
   logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
   email: string | null;
   phone: string | null;
   created_at: string;

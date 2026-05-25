@@ -15,11 +15,10 @@ import {
   X,
   Zap,
   FlaskConical,
-  Sparkles,
-  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { APP_NAME, NAV_ITEMS } from "@/constants";
+import { NAV_ITEMS } from "@/constants";
+import { BrandLogo } from "@/components/shared/brand-logo";
 import { useUiStore } from "@/store/ui-store";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -79,13 +78,13 @@ function NavLink({
     >
       {active && (
         <span
-          className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-transparent ring-1 ring-emerald-400/30"
+          className="brand-nav-active-bg absolute inset-0 rounded-xl"
           aria-hidden
         />
       )}
       {active && (
         <span
-          className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-emerald-300 to-teal-500 shadow-[0_0_12px_rgba(52,211,153,0.6)]"
+          className="brand-nav-active-bar absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full"
           aria-hidden
         />
       )}
@@ -93,8 +92,8 @@ function NavLink({
         className={cn(
           "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
           active
-            ? "bg-emerald-500/20 text-emerald-300 shadow-inner"
-            : "bg-white/5 text-slate-400 group-hover:bg-white/10 group-hover:text-emerald-300"
+            ? "brand-nav-icon-active shadow-inner"
+            : "brand-nav-icon-hover bg-white/5 text-slate-400 group-hover:bg-white/10"
         )}
       >
         <Icon className="h-4 w-4" />
@@ -109,23 +108,9 @@ function SidebarBrand({ onNavigate }: { onNavigate?: () => void }) {
     <Link
       href="/dashboard"
       onClick={onNavigate}
-      className="group flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 transition"
+      className="group flex min-w-0 flex-1 rounded-2xl p-1 transition"
     >
-      <div className="relative shrink-0">
-        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-emerald-400/40 to-teal-500/30 opacity-0 blur-md transition-opacity group-hover:opacity-100" />
-        <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-900/40">
-          <MessageCircle className="h-6 w-6 text-white" strokeWidth={2.25} />
-        </div>
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-base font-bold tracking-tight text-white">
-          {APP_NAME}
-        </p>
-        <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-400/90">
-          <Sparkles className="h-3 w-3 shrink-0" />
-          WhatsApp AI
-        </p>
-      </div>
+      <BrandLogo />
     </Link>
   );
 }
@@ -189,7 +174,7 @@ function SidebarFooter({ onNavigate }: { onNavigate: () => void }) {
         <Link
           href="/integrations"
           onClick={onNavigate}
-          className="mt-2 inline-flex text-[11px] font-semibold text-emerald-400 transition hover:text-emerald-300"
+          className="text-brand mt-2 inline-flex text-[11px] font-semibold transition hover:opacity-80"
         >
           Open integrations →
         </Link>

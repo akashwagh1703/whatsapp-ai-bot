@@ -50,7 +50,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   },
   "/settings": {
     title: "Settings",
-    subtitle: "Environment credentials and preferences",
+    subtitle: "Appearance, branding, and environment credentials",
   },
 };
 
@@ -68,7 +68,7 @@ function resolvePageMeta(pathname: string) {
     };
   }
 
-  return { title: "Workspace", subtitle: "FlowChat AI" };
+  return { title: "Workspace", subtitle: "WhatsApp AI workspace" };
 }
 
 export function DashboardHeader() {
@@ -93,7 +93,7 @@ export function DashboardHeader() {
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 lg:hidden"
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-700 shadow-sm transition hover:bg-brand-soft hover:text-brand lg:hidden"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
@@ -106,7 +106,7 @@ export function DashboardHeader() {
             >
               <Link
                 href="/dashboard"
-                className="transition hover:text-emerald-600"
+                className="transition hover:text-brand"
               >
                 Home
               </Link>
@@ -128,13 +128,13 @@ export function DashboardHeader() {
             <input
               type="search"
               placeholder="Search conversations…"
-              className="h-10 w-full rounded-xl border border-slate-200/80 bg-slate-50/80 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-500/15"
+              className="h-10 w-full rounded-xl border border-slate-200/80 bg-slate-50/80 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 ring-brand"
               aria-label="Search"
             />
           </div>
 
-          <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200/80 bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 md:inline-flex">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+          <span className="badge-brand hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold md:inline-flex">
+            <Sparkles className="text-brand h-3.5 w-3.5" />
             AI ready
           </span>
 
@@ -144,16 +144,16 @@ export function DashboardHeader() {
             aria-label="Notifications"
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+            <span className="bg-brand absolute right-2 top-2 h-2 w-2 rounded-full ring-2 ring-white" />
           </button>
 
           <div
             className={cn(
               "flex max-w-[180px] items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white py-1.5 pl-1.5 pr-3 shadow-sm",
-              "transition hover:border-emerald-200/80 hover:shadow-md"
+              "transition hover:shadow-md"
             )}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-xs font-bold text-white shadow-inner">
+            <div className="brand-logo-box flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-inner">
               {email ? email.charAt(0).toUpperCase() : "U"}
             </div>
             <div className="min-w-0 hidden sm:block">
