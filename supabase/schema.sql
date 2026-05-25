@@ -69,6 +69,7 @@ create table if not exists public.ai_settings (
   tone text not null default 'professional' check (tone in ('professional', 'friendly', 'sales', 'luxury')),
   model text not null default 'minimax/minimax-m2.5:free',
   business_knowledge text,
+  reply_language text default 'auto',
   human_handoff boolean not null default true,
   updated_at timestamptz not null default now()
 );

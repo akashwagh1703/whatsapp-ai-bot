@@ -25,6 +25,14 @@ export interface SetupStep {
   actionLabel: string;
 }
 
+export interface ReliabilityPillar {
+  id: string;
+  label: string;
+  description: string;
+  ok: boolean;
+  href: string;
+}
+
 export interface IntegrationStatus {
   readyForAutoReply: boolean;
   webhookUrl: string;
@@ -33,7 +41,10 @@ export interface IntegrationStatus {
   whatsappEnvVars: string[];
   openrouterEnvVars: string[];
   defaultModel: string;
+  replyLanguage: string;
   steps: SetupStep[];
+  reliability: ReliabilityPillar[];
+  reliabilityScore: number;
 }
 
 export async function getIntegrationStatus(
@@ -42,13 +53,31 @@ export async function getIntegrationStatus(
 ): Promise<IntegrationStatus> {
   const { data: ai } = await supabase
     .from("ai_settings")
-    .select("enabled, model")
+    .select("enabled, model, reply_language")
     .eq("business_id", businessId)
+    .maybeSingle();
+
+  const { data: automations } = await supabase
+    .from("automations")
+    .select("away_enabled, away_message, welcome_enabled, welcome_message")
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name, logo_url, primary_color")
+    .eq("id", businessId)
     .maybeSingle();
 
   const whatsappOk = isWhatsAppEnvConfigured();
   const openRouterOk = isOpenRouterEnvConfigured();
   const aiOk = !!ai?.enabled;
+  const webhookOk = whatsappOk && isWebhookSignatureEnforced();
+  const awayOk =
+    !!automations?.away_enabled && !!automations.away_message?.trim();
+  const brandingOk =
+    !!business?.name?.trim() &&
+    !!business?.primary_color?.trim();
 
   const steps: SetupStep[] = [
     {
@@ -95,6 +124,60 @@ export async function getIntegrationStatus(
     },
   ];
 
+  const reliability: ReliabilityPillar[] = [
+    {
+      id: "webhook",
+      label: "Webhook",
+      description: "Meta delivers messages to your server (verify + app secret).",
+      ok: webhookOk,
+      href: "/integrations#meta-webhook",
+    },
+    {
+      id: "ai",
+      label: "AI auto-reply",
+      description: "OpenRouter key set and AI assistant turned on.",
+      ok: aiOk && openRouterOk,
+      href: "/ai-bot",
+    },
+    {
+      id: "inbox",
+      label: "Inbox",
+      description: "All customer chats saved and visible in one place.",
+      ok: true,
+      href: "/inbox",
+    },
+    {
+      id: "away",
+      label: "Away message",
+      description: "Optional — auto-reply when you are closed (Automations).",
+      ok: awayOk,
+      href: "/automations",
+    },
+    {
+      id: "leads",
+      label: "Leads",
+      description: "New contacts counted in Analytics when someone texts first time.",
+      ok: true,
+      href: "/analytics",
+    },
+    {
+      id: "notifications",
+      label: "Notifications",
+      description: "Handoff alerts in the header bell when customers need a human.",
+      ok: true,
+      href: "/inbox",
+    },
+    {
+      id: "branding",
+      label: "Branding",
+      description: "Project name and colors on dashboard and login.",
+      ok: brandingOk,
+      href: "/settings",
+    },
+  ];
+
+  const reliabilityScore = reliability.filter((p) => p.ok).length;
+
   return {
     readyForAutoReply: whatsappOk && openRouterOk && aiOk,
     webhookUrl: getWebhookUrl(),
@@ -108,6 +191,9 @@ export async function getIntegrationStatus(
     ],
     openrouterEnvVars: ["OPENROUTER_API_KEY", "OPENROUTER_DEFAULT_MODEL"],
     defaultModel: getDefaultAiModel(),
+    replyLanguage: ai?.reply_language ?? "auto",
     steps,
+    reliability,
+    reliabilityScore,
   };
 }

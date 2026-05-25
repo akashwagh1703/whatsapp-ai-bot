@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { INTEGRATION_EVENTS } from "@/constants";
 import { createClient } from "@/lib/supabase/client";
 import { SetupChecklist } from "@/components/integrations/setup-checklist";
+import { IndustryPresets } from "@/components/integrations/industry-presets";
+import { ReplyLanguageCard } from "@/components/integrations/reply-language-card";
+import { WhatsAppOfficialGuide } from "@/components/integrations/whatsapp-official-guide";
+import { cn } from "@/lib/utils";
 
 export default function IntegrationsPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -76,16 +80,23 @@ export default function IntegrationsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Integrations</h1>
         <p className="mt-1 text-slate-500">
-          Connect WhatsApp, OpenRouter AI, and Meta — then optional outbound webhooks.
+          Connect WhatsApp for reliable auto-reply, set your language and
+          industry template, and optional CRM webhooks.
         </p>
       </div>
 
       <SetupChecklist />
 
+      <IndustryPresets />
+
+      <ReplyLanguageCard />
+
+      <WhatsAppOfficialGuide />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Plug className="h-5 w-5 text-emerald-600" />
+            <Plug className="text-brand h-5 w-5" />
             Outbound webhooks (optional)
           </CardTitle>
           <CardDescription>
@@ -111,7 +122,7 @@ export default function IntegrationsPage() {
               </Button>
             </div>
             {copied && (
-              <p className="mt-1 text-xs text-emerald-600">Copied!</p>
+              <p className="text-brand mt-1 text-xs">Copied!</p>
             )}
           </div>
           <div>
@@ -122,11 +133,12 @@ export default function IntegrationsPage() {
                   key={ev.value}
                   type="button"
                   onClick={() => toggleEvent(ev.value)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
                     events.includes(ev.value)
-                      ? "bg-emerald-600 text-white"
+                      ? "btn-brand"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
+                  )}
                 >
                   {ev.label}
                 </button>

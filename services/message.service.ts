@@ -7,6 +7,15 @@ export async function upsertContactAndConversation(
   phone: string,
   contactName: string
 ) {
+  const { data: existingContact } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("phone", phone)
+    .maybeSingle();
+
+  const isNewContact = !existingContact;
+
   const { data: contact } = await supabase
     .from("contacts")
     .upsert(
@@ -51,7 +60,19 @@ export async function upsertContactAndConversation(
     throw new Error("Failed to upsert conversation");
   }
 
-  return { contact, conversation, isNewConversation };
+  return { contact, conversation, isNewConversation, isNewContact };
+}
+
+export async function messageExistsByWaId(
+  supabase: SupabaseClient,
+  waMessageId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("messages")
+    .select("id")
+    .eq("wa_message_id", waMessageId)
+    .maybeSingle();
+  return !!data;
 }
 
 export async function saveMessage(
@@ -61,6 +82,7 @@ export async function saveMessage(
     direction: MessageDirection;
     content: string | null;
     mediaType?: string | null;
+    mediaUrl?: string | null;
     isAi?: boolean;
     waMessageId?: string;
   }
@@ -72,6 +94,7 @@ export async function saveMessage(
       direction: params.direction,
       content: params.content,
       media_type: params.mediaType ?? null,
+      media_url: params.mediaUrl ?? null,
       is_ai: params.isAi ?? false,
       wa_message_id: params.waMessageId ?? null,
     })

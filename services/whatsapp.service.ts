@@ -75,6 +75,7 @@ export function parseIncomingWebhook(body: {
     type: string;
     content: string | null;
     mediaType: string | null;
+    mediaId: string | null;
     contactName: string;
   }> = [];
 
@@ -100,12 +101,20 @@ export function parseIncomingWebhook(body: {
           content = `[${msg.type}]`;
         }
 
+        const mediaId =
+          msg.type === "image"
+            ? msg.image?.id
+            : msg.type === "audio"
+              ? msg.audio?.id
+              : undefined;
+
         messages.push({
           from: msg.from,
           waMessageId: msg.id,
           type: msg.type,
           content,
           mediaType,
+          mediaId: mediaId ?? null,
           contactName,
         });
       }
@@ -140,4 +149,21 @@ export function summarizeWebhookPayload(body: {
     messageCount,
     phoneNumberId,
   };
+}
+
+/** Resolves a temporary download URL for WhatsApp media (images, audio). */
+export async function fetchWhatsAppMediaUrl(
+  mediaId: string,
+  token: string
+): Promise<string | null> {
+  try {
+    const metaRes = await fetch(`${GRAPH_API}/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!metaRes.ok) return null;
+    const meta = (await metaRes.json()) as { url?: string };
+    return meta.url ?? null;
+  } catch {
+    return null;
+  }
 }

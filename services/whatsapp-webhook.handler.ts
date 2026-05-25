@@ -15,11 +15,13 @@ import {
 } from "@/services/ai.service";
 import {
   bumpAnalytics,
+  messageExistsByWaId,
   saveMessage,
   upsertContactAndConversation,
 } from "@/services/message.service";
 import { dispatchIntegrationWebhook } from "@/services/webhook-dispatch.service";
 import {
+  fetchWhatsAppMediaUrl,
   parseIncomingWebhook,
   sendWhatsAppText,
 } from "@/services/whatsapp.service";
@@ -36,7 +38,15 @@ export interface WebhookMessageResult {
   replySent: boolean;
   replySaved: boolean;
   replyPreview?: string;
-  replySource?: "keyword" | "welcome" | "ai" | "fallback" | "handoff" | "none";
+  replySource?:
+    | "keyword"
+    | "welcome"
+    | "away"
+    | "ai"
+    | "fallback"
+    | "handoff"
+    | "duplicate"
+    | "none";
   skippedReason?: string;
   error?: string;
 }
@@ -201,11 +211,21 @@ export async function processWhatsAppWebhook(
   const token = getWhatsAppAccessToken();
   const openRouterKey = getOpenRouterApiKey();
 
-  if (resolved.warning === "phone_id_mismatch") {
-    console.error("[webhook] phone_number_id mismatch", {
+  if (resolved.warning === "phone_id_mismatch" && phoneId) {
+    console.error("[webhook] phone_number_id mismatch — skipping processing", {
       meta: metaSummary.phoneNumberId,
       env: phoneId,
     });
+    return {
+      ok: false,
+      messagesParsed: incoming.length,
+      error:
+        "WHATSAPP_PHONE_ID does not match Meta phone_number_id in webhook payload",
+      businessId,
+      phoneMismatch: true,
+      results: [],
+      env,
+    };
   }
 
   const results: WebhookMessageResult[] = [];
@@ -221,7 +241,14 @@ export async function processWhatsAppWebhook(
     };
 
     try {
-      const { conversation, isNewConversation } =
+      if (msg.waMessageId && (await messageExistsByWaId(supabase, msg.waMessageId))) {
+        item.skippedReason = "duplicate_wa_message_id";
+        item.replySource = "duplicate";
+        results.push(item);
+        continue;
+      }
+
+      const { conversation, isNewConversation, isNewContact } =
         await upsertContactAndConversation(
           supabase,
           businessId,
@@ -230,16 +257,35 @@ export async function processWhatsAppWebhook(
         );
       item.conversationId = conversation.id;
 
+      let mediaUrl: string | null = null;
+      if (msg.mediaId && token) {
+        mediaUrl = await fetchWhatsAppMediaUrl(msg.mediaId, token);
+      }
+
       await saveMessage(supabase, {
         conversationId: conversation.id,
         direction: "inbound",
         content: msg.content,
         mediaType: msg.mediaType,
+        mediaUrl,
         waMessageId: msg.waMessageId,
       });
 
       if (isNewConversation) {
         await bumpAnalytics(supabase, businessId, "conversations");
+      }
+      if (isNewContact) {
+        await bumpAnalytics(supabase, businessId, "leads");
+        await dispatchIntegrationWebhook(
+          integrations?.webhook_url,
+          integrations?.events as string[],
+          "new_lead",
+          {
+            conversationId: conversation.id,
+            from: msg.from,
+            contactName: msg.contactName,
+          }
+        );
       }
 
       await dispatchIntegrationWebhook(
@@ -263,6 +309,12 @@ export async function processWhatsAppWebhook(
       if (matched) {
         replyText = matched.reply;
         replySource = "keyword";
+      } else if (
+        automations?.away_enabled &&
+        automations.away_message?.trim()
+      ) {
+        replyText = automations.away_message.trim();
+        replySource = "away";
       } else if (automations?.welcome_enabled && automations.welcome_message) {
         const { count } = await supabase
           .from("messages")
@@ -288,6 +340,17 @@ export async function processWhatsAppWebhook(
           title: "Human assistance requested",
           body: `${msg.contactName} needs a team member.`,
         });
+
+        await dispatchIntegrationWebhook(
+          integrations?.webhook_url,
+          integrations?.events as string[],
+          "ai_handoff",
+          {
+            conversationId: conversation.id,
+            from: msg.from,
+            contactName: msg.contactName,
+          }
+        );
 
         if (!replyText) {
           replyText = HANDOFF_REPLY;
@@ -349,7 +412,10 @@ export async function processWhatsAppWebhook(
         if (!conversation.ai_enabled)
           reasons.push("conversation in Human mode (re-enable in Inbox)");
         if (!openRouterKey) reasons.push("missing OPENROUTER_API_KEY in env");
-        if (!msg.content?.trim()) reasons.push("no text content");
+        if (!msg.content?.trim() && !msg.mediaType)
+          reasons.push("no text or supported media");
+        if (automations?.away_enabled && !automations.away_message?.trim())
+          reasons.push("away enabled but empty message");
         item.skippedReason = reasons.join(", ") || "no_reply_rule_matched";
       }
 
@@ -362,7 +428,7 @@ export async function processWhatsAppWebhook(
           replySource,
           phoneId,
           token,
-          isAi: replySource === "ai",
+          isAi: replySource === "ai" || replySource === "fallback",
         });
         item.replySaved = true;
         item.replyPreview = replyText.slice(0, 200);

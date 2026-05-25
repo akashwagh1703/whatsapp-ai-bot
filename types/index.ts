@@ -60,6 +60,7 @@ export interface AiSettings {
   tone: AiTone;
   model: string;
   business_knowledge: string | null;
+  reply_language: string | null;
   human_handoff: boolean;
   updated_at: string;
 }

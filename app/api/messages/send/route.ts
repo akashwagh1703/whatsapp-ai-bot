@@ -51,7 +51,15 @@ export async function POST(request: Request) {
   const phoneId = getWhatsAppPhoneId();
   const token = getWhatsAppAccessToken();
 
-  if (phoneId && token && conversation.contact?.phone) {
+  let whatsappSent = false;
+  let whatsappError: string | null = null;
+
+  if (!phoneId || !token) {
+    whatsappError =
+      "WhatsApp not configured — set WHATSAPP_PHONE_ID and WHATSAPP_TOKEN in env.";
+  } else if (!conversation.contact?.phone) {
+    whatsappError = "Contact phone number missing.";
+  } else {
     try {
       await sendWhatsAppText({
         phoneId,
@@ -59,9 +67,23 @@ export async function POST(request: Request) {
         to: conversation.contact.phone,
         text: body.data.content,
       });
+      whatsappSent = true;
     } catch (e) {
-      console.error(e);
+      whatsappError =
+        e instanceof Error ? e.message : "WhatsApp send failed";
+      console.error("[messages/send]", whatsappError);
     }
+  }
+
+  if (!whatsappSent) {
+    return NextResponse.json(
+      {
+        ok: false,
+        whatsappSent: false,
+        error: whatsappError ?? "Message was not sent to WhatsApp",
+      },
+      { status: 502 }
+    );
   }
 
   await saveMessage(supabase, {
@@ -78,5 +100,5 @@ export async function POST(request: Request) {
 
   await bumpAnalytics(supabase, business.id, "human_replies");
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, whatsappSent: true });
 }

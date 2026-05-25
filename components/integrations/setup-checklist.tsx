@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { WebhookUrlField } from "@/components/shared/webhook-url-field";
 import type { IntegrationStatus } from "@/services/integration-status.service";
+import { ReliabilityPillars } from "@/components/integrations/reliability-pillars";
 
 export function SetupChecklist() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -95,6 +96,13 @@ export function SetupChecklist() {
           </p>
         </CardContent>
       </Card>
+
+      {status?.reliability && (
+        <ReliabilityPillars
+          pillars={status.reliability}
+          score={status.reliabilityScore}
+        />
+      )}
 
       <div className="space-y-3">
         {status?.steps.map((step) => (

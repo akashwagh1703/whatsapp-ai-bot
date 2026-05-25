@@ -31,6 +31,7 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const { data: businessId } = useQuery({
     queryKey: ["business-id"],
@@ -58,6 +59,7 @@ export default function InboxPage() {
       return list.filter(
         (c) =>
           c.contact?.name?.toLowerCase().includes(s) ||
+          c.contact?.phone?.includes(s) ||
           c.last_message?.toLowerCase().includes(s)
       );
     },
@@ -117,6 +119,7 @@ export default function InboxPage() {
   async function sendMessage() {
     if (!draft.trim() || !selectedId) return;
     setSending(true);
+    setSendError(null);
     const res = await fetch("/api/messages/send", {
       method: "POST",
       credentials: "include",
@@ -126,10 +129,17 @@ export default function InboxPage() {
         content: draft.trim(),
       }),
     });
+    const body = await res.json().catch(() => ({}));
     setSending(false);
-    if (res.ok) {
+    if (res.ok && body.ok) {
       setDraft("");
       queryClient.invalidateQueries({ queryKey: ["messages", selectedId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    } else {
+      setSendError(
+        (body as { error?: string }).error ??
+          "Message was not delivered to WhatsApp."
+      );
     }
   }
 
@@ -173,7 +183,7 @@ export default function InboxPage() {
                   action={
                     <Link
                       href="/integrations"
-                      className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                      className="text-brand text-sm font-medium hover:opacity-80"
                     >
                       Check integration setup →
                     </Link>
@@ -213,7 +223,7 @@ export default function InboxPage() {
               <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
                 <button
                   type="button"
-                  className="text-sm text-emerald-600 lg:hidden"
+                  className="text-brand text-sm lg:hidden"
                   onClick={() => setInboxPanel("list")}
                 >
                   ← Back
@@ -252,6 +262,11 @@ export default function InboxPage() {
               </div>
 
               <div className="border-t border-slate-100 p-4">
+                {sendError && (
+                  <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {sendError}
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <Textarea
                     placeholder="Type your message…"

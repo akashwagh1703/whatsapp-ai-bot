@@ -117,7 +117,8 @@ export default function AutomationsPage() {
           <div>
             <CardTitle>Away message</CardTitle>
             <CardDescription>
-              Let customers know when you&apos;re unavailable.
+              When enabled, sends this message instead of the AI bot (keywords
+              still apply first). Turn off when you want AI auto-reply again.
             </CardDescription>
           </div>
           <Switch

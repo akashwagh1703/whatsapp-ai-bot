@@ -112,6 +112,19 @@ OPENROUTER_DEFAULT_MODEL=minimax/minimax-m2.5:free
 
 ---
 
+## Platform enhancements (built-in)
+
+| Feature | Behavior |
+|---------|----------|
+| **Away message** | Automations → Away ON sends `away_message` instead of AI (after keywords) |
+| **Leads** | First message from a new phone increments **Leads** analytics + `new_lead` webhook event |
+| **Notifications** | Bell icon → handoff alerts; realtime updates |
+| **Media** | Images/audio get Meta download URL in Inbox (URLs expire — Meta limitation) |
+| **Idempotency** | Duplicate `wa_message_id` ignored (run `supabase/enhancements-migration.sql` for DB index) |
+| **Inbox send** | Fails loudly if WhatsApp API fails — message not saved to thread |
+
+---
+
 ## Troubleshooting
 
 | Issue | Fix |

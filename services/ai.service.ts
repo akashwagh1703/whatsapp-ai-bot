@@ -1,4 +1,8 @@
 import { HUMAN_HANDOFF_KEYWORDS } from "@/constants";
+import {
+  getLanguageInstruction,
+  type ReplyLanguageCode,
+} from "@/constants/industry-presets";
 import type { AiSettings, AiTone } from "@/types";
 
 const TONE_INSTRUCTIONS: Record<AiTone, string> = {
@@ -13,13 +17,18 @@ const TONE_INSTRUCTIONS: Record<AiTone, string> = {
 
 export function buildSystemPrompt(
   settings: Partial<
-    Pick<AiSettings, "prompt" | "tone" | "business_knowledge" | "human_handoff">
+    Pick<
+      AiSettings,
+      "prompt" | "tone" | "business_knowledge" | "human_handoff" | "reply_language"
+    >
   >
 ) {
   const tone = settings.tone ?? "professional";
+  const langCode = (settings.reply_language ?? "auto") as ReplyLanguageCode;
   const parts = [
     settings.prompt || "You are a helpful business assistant on WhatsApp.",
     TONE_INSTRUCTIONS[tone],
+    getLanguageInstruction(langCode),
   ];
   if (settings.business_knowledge) {
     parts.push("Business knowledge:\n" + settings.business_knowledge);

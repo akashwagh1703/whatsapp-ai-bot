@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Bell,
   ChevronRight,
   Menu,
   Search,
@@ -14,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/constants";
 import { useUiStore } from "@/store/ui-store";
 import { createClient } from "@/lib/supabase/client";
+import { NotificationsPanel } from "@/components/layout/notifications-panel";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -42,7 +42,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   },
   "/integrations": {
     title: "Integrations",
-    subtitle: "WhatsApp, OpenRouter, and Meta webhooks",
+    subtitle: "Reliability, language, industry setups, and Meta webhooks",
   },
   "/webhook-test": {
     title: "Webhook test",
@@ -138,14 +138,7 @@ export function DashboardHeader() {
             AI ready
           </span>
 
-          <button
-            type="button"
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="bg-brand absolute right-2 top-2 h-2 w-2 rounded-full ring-2 ring-white" />
-          </button>
+          <NotificationsPanel />
 
           <div
             className={cn(

@@ -18,14 +18,37 @@ export function MessageBubble({ message }: { message: Message }) {
             : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
         )}
       >
-        {message.media_type && (
+        {message.media_type === "image" && message.media_url && (
+          <a
+            href={message.media_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-2 block overflow-hidden rounded-lg"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={message.media_url}
+              alt="WhatsApp image"
+              className="max-h-48 w-full object-cover"
+            />
+          </a>
+        )}
+        {message.media_type === "audio" && message.media_url && (
+          <audio controls className="mb-2 w-full max-w-xs" src={message.media_url}>
+            <track kind="captions" />
+          </audio>
+        )}
+        {message.media_type && !message.media_url && (
           <p className="mb-1 text-xs opacity-80">
             {message.media_type === "image" ? "📷 Image" : "🎤 Voice note"}
+            {" "}(media unavailable)
           </p>
         )}
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">
-          {message.content}
-        </p>
+        {message.content && message.content !== "[Image]" && (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">
+            {message.content}
+          </p>
+        )}
         <div
           className={cn(
             "mt-1 flex items-center gap-2 text-[10px]",
