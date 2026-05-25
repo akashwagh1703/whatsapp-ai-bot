@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { AiSettings, AiTone } from "@/types";
 import { cn } from "@/lib/utils";
 import { PromptSuggestions } from "@/components/ai-bot/prompt-suggestions";
+import { ChatbotPlayground } from "@/components/ai-bot/chatbot-playground";
 
 export default function AiBotPage() {
   const [settings, setSettings] = useState<Partial<AiSettings>>({
@@ -74,10 +75,12 @@ export default function AiBotPage() {
         </div>
         <h1 className="mt-3 text-2xl font-bold text-slate-900">AI Bot</h1>
         <p className="mt-1 text-slate-500">
-          Teach your assistant how to represent your business — no technical
-          knowledge required.
+          Powered by OpenRouter and your free model from env — same bot replies on
+          WhatsApp when AI is ON.
         </p>
       </div>
+
+      <ChatbotPlayground />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

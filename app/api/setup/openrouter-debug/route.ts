@@ -7,6 +7,7 @@ import {
   logOpenRouterEnv,
   maskOpenRouterKey,
 } from "@/lib/openrouter-env";
+import { testOpenRouterChatbot } from "@/services/openrouter-chatbot.service";
 
 /** Test endpoint: logs OpenRouter env to server console + returns safe JSON. */
 export async function GET() {
@@ -29,6 +30,7 @@ export async function GET() {
     .maybeSingle();
 
   const resolvedModel = resolveAiModel(ai?.model);
+  const liveTest = cfg.keyConfigured ? await testOpenRouterChatbot() : null;
 
   const payload = {
     ok: cfg.keyConfigured,
@@ -46,6 +48,7 @@ export async function GET() {
       enabled: !!ai?.enabled,
       modelInDatabase: ai?.model ?? null,
     },
+    liveTest,
     hints: [
       "Local: put OPENROUTER_API_KEY and OPENROUTER_DEFAULT_MODEL in .env.local",
       "Then stop and run npm run dev again",

@@ -25,10 +25,14 @@ export const AI_TONES: { value: AiTone; label: string; description: string }[] =
 export const DEFAULT_AI_MODEL = getDefaultAiModel();
 
 export const AI_MODELS = [
-  { value: DEFAULT_AI_MODEL, label: "Default (from env)" },
-  { value: "deepseek/deepseek-chat", label: "DeepSeek" },
-  { value: "google/gemini-2.0-flash-001", label: "Gemini" },
-  { value: "openai/gpt-4o-mini", label: "GPT" },
+  {
+    value: DEFAULT_AI_MODEL,
+    label: `Env free model (${DEFAULT_AI_MODEL})`,
+  },
+  { value: "minimax/minimax-m2.5:free", label: "MiniMax M2.5 (free)" },
+  { value: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3 (free)" },
+  { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
+  { value: "openai/gpt-4o-mini", label: "GPT-4o mini" },
 ] as const;
 
 export const INTEGRATION_EVENTS = [

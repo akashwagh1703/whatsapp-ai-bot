@@ -69,7 +69,11 @@ export async function getOrCreateBusiness(supabase: SupabaseClient, userId: stri
 
   if (error) throw error;
 
-  await supabase.from("ai_settings").insert({ business_id: business.id });
+  await supabase.from("ai_settings").insert({
+    business_id: business.id,
+    model: getDefaultAiModel(),
+    enabled: isOpenRouterEnvConfigured(),
+  });
   await supabase.from("automations").insert({ business_id: business.id });
   await supabase.from("integration_settings").insert({ business_id: business.id });
   await supabase.from("app_settings").insert({ business_id: business.id });
