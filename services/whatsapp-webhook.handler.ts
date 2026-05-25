@@ -1,7 +1,11 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { ensureAiSettings } from "@/lib/business";
 import { resolveAiModel } from "@/lib/ai-model";
-import { getOpenRouterApiKey } from "@/lib/openrouter-env";
+import {
+  getOpenRouterApiKey,
+  getOpenRouterConfig,
+  logOpenRouterEnv,
+} from "@/lib/openrouter-env";
 import {
   getWhatsAppAccessToken,
   getWhatsAppPhoneId,
@@ -63,6 +67,7 @@ export interface WebhookProcessResult {
     hasPhoneId: boolean;
     hasWaToken: boolean;
     hasOpenRouter: boolean;
+    openRouterModel: string;
     hasServiceRole: boolean;
     aiEnabled: boolean;
   };
@@ -124,13 +129,19 @@ export async function processWhatsAppWebhook(
     body as Parameters<typeof parseIncomingWebhook>[0]
   );
 
+  const openRouterCfg = getOpenRouterConfig();
   const env = {
     hasPhoneId: !!getWhatsAppPhoneId(),
     hasWaToken: !!getWhatsAppAccessToken(),
-    hasOpenRouter: !!getOpenRouterApiKey(),
+    hasOpenRouter: openRouterCfg.keyConfigured,
+    openRouterModel: openRouterCfg.model,
     hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
     aiEnabled: false,
   };
+
+  if (incoming.length > 0) {
+    logOpenRouterEnv("webhook inbound");
+  }
 
   if (!incoming.length) {
     return {
@@ -209,7 +220,7 @@ export async function processWhatsAppWebhook(
 
   const phoneId = getWhatsAppPhoneId();
   const token = getWhatsAppAccessToken();
-  const openRouterKey = getOpenRouterApiKey();
+  const openRouterKey = openRouterCfg.apiKey;
 
   if (resolved.warning === "phone_id_mismatch" && phoneId) {
     console.error("[webhook] phone_number_id mismatch — skipping processing", {
@@ -365,6 +376,7 @@ export async function processWhatsAppWebhook(
       ) {
         const systemPrompt = buildSystemPrompt(aiSettings);
         const model = resolveAiModel(aiSettings.model);
+        console.info("[webhook] AI reply using model:", model);
 
         const { data: history } = await supabase
           .from("messages")

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AiSettings } from "@/types";
+import { getDefaultAiModel } from "@/lib/ai-model";
+import { isOpenRouterEnvConfigured } from "@/lib/openrouter-env";
 import { getWhatsAppPhoneId } from "@/lib/whatsapp-env";
 
 /** Guarantees ai_settings row exists (enabled by default in schema). */
@@ -13,11 +15,33 @@ export async function ensureAiSettings(
     .eq("business_id", businessId)
     .maybeSingle();
 
-  if (existing) return existing as AiSettings;
+  const envModel = getDefaultAiModel();
+
+  if (existing) {
+    const updates: Record<string, unknown> = {};
+    if (!existing.model?.trim()) {
+      updates.model = envModel;
+    }
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString();
+      const { data: updated, error } = await supabase
+        .from("ai_settings")
+        .update(updates)
+        .eq("business_id", businessId)
+        .select()
+        .single();
+      if (!error && updated) return updated as AiSettings;
+    }
+    return existing as AiSettings;
+  }
 
   const { data: created, error } = await supabase
     .from("ai_settings")
-    .insert({ business_id: businessId })
+    .insert({
+      business_id: businessId,
+      model: envModel,
+      enabled: isOpenRouterEnvConfigured(),
+    })
     .select()
     .single();
 

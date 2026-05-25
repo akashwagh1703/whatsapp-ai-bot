@@ -3,6 +3,7 @@ import {
   getLanguageInstruction,
   type ReplyLanguageCode,
 } from "@/constants/industry-presets";
+import { logOpenRouterEnv } from "@/lib/openrouter-env";
 import type { AiSettings, AiTone } from "@/types";
 
 const TONE_INSTRUCTIONS: Record<AiTone, string> = {
@@ -59,6 +60,9 @@ export async function generateAiReply(
   userMessage: string,
   history: { role: "user" | "assistant"; content: string }[] = []
 ) {
+  logOpenRouterEnv("generateAiReply");
+  console.info("[openrouter] calling model:", model);
+
   const messages = [
     { role: "system" as const, content: systemPrompt },
     ...history.slice(-8),

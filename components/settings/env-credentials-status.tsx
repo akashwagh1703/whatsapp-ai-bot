@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,8 +25,8 @@ interface EnvStatusResponse {
     signatureEnforced?: boolean;
   };
   openrouter: {
-    apiKey: EnvRow;
-    defaultModel: { value: string; envKey: string };
+    apiKey: EnvRow & { masked?: string };
+    defaultModel: { value: string; envKey: string; source?: string };
     ready: boolean;
   };
   appUrl: string;
@@ -66,6 +67,8 @@ function StatusRow({
 }
 
 export function EnvCredentialsStatus() {
+  const [debugResult, setDebugResult] = useState<string | null>(null);
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["env-status"],
     queryFn: async () => {
@@ -140,11 +143,39 @@ export function EnvCredentialsStatus() {
             label="Default model"
             row={{
               configured: !!data.openrouter.defaultModel.value,
-              envKey: data.openrouter.defaultModel.envKey,
+              envKey: data.openrouter.defaultModel.value
+                ? `${data.openrouter.defaultModel.envKey} (${data.openrouter.defaultModel.source ?? "env"})`
+                : data.openrouter.defaultModel.envKey,
               preview: data.openrouter.defaultModel.value,
             }}
           />
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Webhook uses this model when AI replies. Check terminal after test
+          (masked key + model name).
+        </p>
+        <button
+          type="button"
+          className="text-brand mt-2 text-sm font-medium hover:opacity-80"
+          onClick={async () => {
+            setDebugResult("Testing…");
+            const res = await fetch("/api/setup/openrouter-debug", {
+              credentials: "include",
+            });
+            const body = await res.json().catch(() => ({}));
+            setDebugResult(
+              JSON.stringify(body, null, 2) +
+                "\n\n(See also npm run dev terminal for [openrouter] logs)"
+            );
+          }}
+        >
+          Test OpenRouter env (console + JSON)
+        </button>
+        {debugResult && (
+          <pre className="mt-2 max-h-48 overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-emerald-300">
+            {debugResult}
+          </pre>
+        )}
       </div>
 
       <p className="text-sm text-slate-600">

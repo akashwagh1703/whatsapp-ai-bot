@@ -10,7 +10,9 @@ export function getDefaultAiModel(): string {
   );
 }
 
-/** AI Bot model from DB wins; otherwise OPENROUTER_DEFAULT_MODEL env. */
+/** AI Bot model from DB if set; otherwise OPENROUTER_DEFAULT_MODEL / NEXT_PUBLIC / fallback. */
 export function resolveAiModel(aiSettingsModel?: string | null): string {
-  return aiSettingsModel?.trim() || getDefaultAiModel();
+  const fromDb = aiSettingsModel?.trim();
+  const fromEnv = getDefaultAiModel();
+  return fromDb || fromEnv;
 }

@@ -107,5 +107,7 @@ export async function POST(request: Request) {
     skippedReason: first?.skippedReason,
     sendError: first?.error,
     env: result.env,
+    openRouterModel: result.env.openRouterModel,
+    openRouterKeyOk: result.env.hasOpenRouter,
   });
 }

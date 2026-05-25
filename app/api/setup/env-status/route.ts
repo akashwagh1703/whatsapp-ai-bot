@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateBusiness } from "@/lib/business";
-import { getDefaultAiModel } from "@/lib/ai-model";
 import {
-  getOpenRouterApiKey,
+  getOpenRouterConfig,
   isOpenRouterEnvConfigured,
+  logOpenRouterEnv,
 } from "@/lib/openrouter-env";
 import {
   getWhatsAppAccessToken,
@@ -38,7 +38,7 @@ export async function GET() {
   const serviceRoleConfigured = !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const waToken = getWhatsAppAccessToken();
   const verifyToken = getWhatsAppVerifyToken();
-  const openRouterKey = getOpenRouterApiKey();
+  const openRouterCfg = logOpenRouterEnv("GET /api/setup/env-status");
 
   return NextResponse.json({
     source: "process.env on server (not database)",
@@ -77,15 +77,19 @@ export async function GET() {
     },
     openrouter: {
       apiKey: {
-        configured: isOpenRouterEnvConfigured(),
-        preview: openRouterKey ? "•••• (set)" : "",
+        configured: openRouterCfg.keyConfigured,
+        preview: openRouterCfg.keyConfigured ? "•••• (set)" : "",
         envKey: "OPENROUTER_API_KEY",
+        masked: openRouterCfg.keyConfigured
+          ? `••••${openRouterCfg.apiKey.slice(-4)}`
+          : "",
       },
       defaultModel: {
-        value: getDefaultAiModel(),
+        value: openRouterCfg.model,
         envKey: "OPENROUTER_DEFAULT_MODEL",
+        source: openRouterCfg.modelSource,
       },
-      ready: isOpenRouterEnvConfigured(),
+      ready: openRouterCfg.keyConfigured,
     },
     appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || "(not set)",
     serviceRole: {
