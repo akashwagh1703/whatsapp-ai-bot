@@ -18,6 +18,7 @@ import {
 } from "@/lib/whatsapp-env";
 import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
 import { createServiceClient } from "@/lib/supabase/server";
+import { interpretWebhookTestResult } from "@/lib/interpret-webhook-test";
 
 const schema = z.discriminatedUnion("action", [
   z.object({
@@ -183,14 +184,14 @@ export async function POST(request: Request) {
   }
 
   const result = await processWhatsAppWebhook(payload);
+  const interpretation = interpretWebhookTestResult(data.text, result);
 
   return NextResponse.json({
     action: "simulate",
     mode: "internal",
     payload,
     result,
-    hint: result.ok
-      ? "Check Inbox for the test conversation"
-      : "Fix warnings before testing again",
+    interpretation,
+    hint: interpretation.summary,
   });
 }

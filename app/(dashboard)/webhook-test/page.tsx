@@ -370,7 +370,10 @@ export default function WebhookTestPage() {
         <CardHeader>
           <CardTitle>2. Simulate incoming message</CardTitle>
           <CardDescription>
-            Runs the real webhook handler (saves to Inbox, may send WhatsApp + AI reply).
+            Simulates a <strong>customer</strong> sending the text below — not a copy back to
+            them. The server then runs the same auto-reply as real WhatsApp (AI, welcome, away,
+            keywords). The phone number receives the <strong>bot reply</strong>, not your test
+            sentence.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -454,10 +457,12 @@ export default function WebhookTestPage() {
         </CardContent>
       </Card>
 
+      {lastResult && <WebhookTestResultPanel result={lastResult} />}
+
       {lastResult && (
         <Card>
           <CardHeader>
-            <CardTitle>Last result</CardTitle>
+            <CardTitle>Raw JSON</CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="max-h-96 overflow-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
@@ -480,6 +485,120 @@ function LivePill({ ok, label }: { ok: boolean; label: string }) {
     >
       {label}
     </span>
+  );
+}
+
+function WebhookTestResultPanel({ result }: { result: object }) {
+  const r = result as {
+    interpretation?: {
+      summary: string;
+      inboundSimulated: string;
+      outboundSent: string | null;
+      replySource: string;
+      replySent: boolean;
+      aiFailed: boolean;
+      aiError: string | null;
+      whatToDo: string[];
+    };
+    result?: {
+      results?: Array<{
+        replySource?: string;
+        replyPreview?: string;
+        replySent?: boolean;
+        error?: string;
+        skippedReason?: string;
+      }>;
+    };
+  };
+
+  const interp = r.interpretation;
+  const first = r.result?.results?.[0];
+
+  if (!interp && !first) return null;
+
+  const aiFailed = interp?.aiFailed ?? first?.replySource === "fallback";
+  const outbound =
+    interp?.outboundSent ?? first?.replyPreview ?? null;
+
+  return (
+    <Card
+      className={cn(
+        "border-2",
+        aiFailed ? "border-amber-300 bg-amber-50/50" : "border-emerald-300 bg-emerald-50/30"
+      )}
+    >
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          {aiFailed ? (
+            <XCircle className="h-5 w-5 text-amber-600" />
+          ) : (
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          )}
+          Test result explained
+        </CardTitle>
+        <CardDescription className="text-slate-700">
+          {interp?.summary ??
+            "See raw JSON for details."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <p className="text-xs font-medium uppercase text-slate-500">
+              Simulated customer message (inbound)
+            </p>
+            <p className="mt-1 text-slate-900">
+              {interp?.inboundSimulated ?? "—"}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <p className="text-xs font-medium uppercase text-slate-500">
+              Sent to WhatsApp (outbound)
+            </p>
+            <p className="mt-1 text-slate-900">
+              {outbound ?? "(none)"}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              Type: <code>{interp?.replySource ?? first?.replySource ?? "none"}</code>
+              {interp?.replySent || first?.replySent ? " · delivered" : " · not sent"}
+            </p>
+          </div>
+        </div>
+
+        {aiFailed && (
+          <div className="rounded-lg border border-amber-200 bg-amber-100/80 p-3 text-amber-950">
+            <p className="font-medium">Why not your test sentence?</p>
+            <p className="mt-1">
+              The portal does not echo your text. &quot;Thanks for reaching out! A team member
+              will follow up shortly.&quot; is the <strong>AI failure fallback</strong> (OpenRouter
+              error, often 429 on free models).
+            </p>
+            {interp?.aiError && (
+              <p className="mt-2 font-mono text-xs break-all">{interp.aiError}</p>
+            )}
+          </div>
+        )}
+
+        {(interp?.whatToDo?.length ?? 0) > 0 && (
+          <ul className="list-disc space-y-1 pl-5 text-slate-700">
+            {interp!.whatToDo.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        )}
+
+        <p className="text-xs text-slate-500">
+          <Link href="/ai-bot" className="text-emerald-600 hover:underline">
+            AI Bot
+          </Link>
+          {" · "}
+          <Link href="/inbox" className="text-emerald-600 hover:underline">
+            Inbox
+          </Link>{" "}
+          (inbound = your test text, outbound = bot reply)
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
