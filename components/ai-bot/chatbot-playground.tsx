@@ -84,9 +84,15 @@ export function ChatbotPlayground() {
         setError(data.error ?? "Chat failed");
         return;
       }
+      const modelNote =
+        data.usedFallback && data.model
+          ? `\n\n_(Used fallback model: ${data.model})_`
+          : data.model
+            ? `\n\n_(${data.model})_`
+            : "";
       setLines((prev) => [
         ...prev,
-        { role: "assistant", content: data.reply },
+        { role: "assistant", content: data.reply + modelNote },
       ]);
     } catch {
       setError("Network error — check server logs");
@@ -140,6 +146,12 @@ export function ChatbotPlayground() {
             Vercel and redeploy.
           </p>
         )}
+
+        <p className="text-xs text-slate-500">
+          Free models (Gemma, Llama, etc.) can return <strong>429 rate-limited</strong>. We
+          auto-try other free models. Recommended env:{" "}
+          <code>OPENROUTER_DEFAULT_MODEL=minimax/minimax-m2.5:free</code>
+        </p>
 
         <Button
           type="button"

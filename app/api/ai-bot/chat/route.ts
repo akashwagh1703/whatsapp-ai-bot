@@ -57,6 +57,8 @@ export async function POST(request: Request) {
       ok: true,
       reply: result.content,
       model: result.model,
+      usedFallback: result.usedFallback ?? false,
+      modelsAttempted: result.modelsAttempted,
       aiEnabled: ai.enabled,
     });
   } catch (e) {

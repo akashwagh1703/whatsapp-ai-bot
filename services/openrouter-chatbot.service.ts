@@ -2,7 +2,11 @@
  * OpenRouter-powered chatbot (WhatsApp auto-reply + dashboard test chat).
  * API key and default model come from server env only.
  */
-import { getDefaultAiModel } from "@/lib/ai-model";
+import {
+  formatRateLimitHint,
+  getDefaultAiModel,
+  getModelFallbackChain,
+} from "@/lib/ai-model";
 import {
   getOpenRouterApiKey,
   getOpenRouterConfig,
@@ -32,13 +36,17 @@ export interface ChatbotResponse {
   content: string;
   model: string;
   finishReason?: string;
+  /** Set when a fallback model was used after 429 on the primary. */
+  usedFallback?: boolean;
+  modelsAttempted?: string[];
 }
 
 export class OpenRouterChatbotError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public body?: string
+    public body?: string,
+    public modelsAttempted?: string[]
   ) {
     super(message);
     this.name = "OpenRouterChatbotError";
@@ -61,18 +69,21 @@ export function resolveChatbotModel(override?: string | null): string {
   return override?.trim() || getDefaultAiModel();
 }
 
-/**
- * Send a chat completion to OpenRouter (OpenAI-compatible API).
- */
-export async function openRouterChat(
-  request: ChatbotRequest
+function isRetryableOpenRouterError(status: number, body: string): boolean {
+  if (status === 429 || status === 503) return true;
+  const lower = body.toLowerCase();
+  return (
+    lower.includes("rate-limited") ||
+    lower.includes("rate limit") ||
+    lower.includes("temporarily")
+  );
+}
+
+async function openRouterChatOnce(
+  request: ChatbotRequest,
+  model: string,
+  apiKey: string
 ): Promise<ChatbotResponse> {
-  const apiKey = request.apiKey ?? requireOpenRouterKey();
-  const model = resolveChatbotModel(request.model);
-
-  logOpenRouterEnv("openRouterChat");
-  console.info("[openrouter-chatbot] model:", model);
-
   const messages: ChatMessage[] = [
     { role: "system", content: request.systemPrompt },
     ...(request.history ?? []).slice(-8).map((m) => ({
@@ -101,7 +112,11 @@ export async function openRouterChat(
 
   const raw = await res.text();
   if (!res.ok) {
-    console.error("[openrouter-chatbot] API error:", res.status, raw.slice(0, 500));
+    console.error(
+      `[openrouter-chatbot] ${model} error:`,
+      res.status,
+      raw.slice(0, 400)
+    );
     throw new OpenRouterChatbotError(
       `OpenRouter API ${res.status}: ${raw.slice(0, 300)}`,
       res.status,
@@ -116,14 +131,16 @@ export async function openRouterChat(
   try {
     data = JSON.parse(raw) as typeof data;
   } catch {
-    throw new OpenRouterChatbotError("OpenRouter returned invalid JSON", res.status, raw);
+    throw new OpenRouterChatbotError(
+      "OpenRouter returned invalid JSON",
+      res.status,
+      raw
+    );
   }
 
   const content =
     data.choices?.[0]?.message?.content?.trim() ||
     "Thanks for your message. We'll get back to you shortly.";
-
-  console.info("[openrouter-chatbot] reply length:", content.length);
 
   return {
     content,
@@ -132,12 +149,68 @@ export async function openRouterChat(
   };
 }
 
-/** Quick connectivity check using env key + free model. */
+/**
+ * Send a chat completion to OpenRouter.
+ * On 429 / rate-limit, automatically tries other free models in the fallback chain.
+ */
+export async function openRouterChat(
+  request: ChatbotRequest
+): Promise<ChatbotResponse> {
+  const apiKey = request.apiKey ?? requireOpenRouterKey();
+  const primary = resolveChatbotModel(request.model);
+  const models = getModelFallbackChain(primary);
+
+  logOpenRouterEnv("openRouterChat");
+  console.info("[openrouter-chatbot] models to try:", models.join(" → "));
+
+  let lastError: OpenRouterChatbotError | null = null;
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    try {
+      const result = await openRouterChatOnce(request, model, apiKey);
+      console.info("[openrouter-chatbot] success:", model, "chars:", result.content.length);
+      return {
+        ...result,
+        usedFallback: i > 0,
+        modelsAttempted: models.slice(0, i + 1),
+      };
+    } catch (e) {
+      if (!(e instanceof OpenRouterChatbotError)) throw e;
+      lastError = e;
+      const retryable = isRetryableOpenRouterError(
+        e.statusCode ?? 0,
+        e.body ?? e.message
+      );
+      if (retryable && i < models.length - 1) {
+        console.warn(
+          `[openrouter-chatbot] ${model} rate-limited — trying ${models[i + 1]}`
+        );
+        continue;
+      }
+      break;
+    }
+  }
+
+  const attempted = models;
+  throw new OpenRouterChatbotError(
+    lastError?.statusCode === 429
+      ? formatRateLimitHint(attempted)
+      : (lastError?.message ?? "All OpenRouter models failed"),
+    lastError?.statusCode,
+    lastError?.body,
+    attempted
+  );
+}
+
+/** Quick connectivity check using env key + free model (with fallbacks). */
 export async function testOpenRouterChatbot(): Promise<{
   ok: boolean;
   model: string;
   replyPreview?: string;
   error?: string;
+  usedFallback?: boolean;
+  modelsAttempted?: string[];
 }> {
   const cfg = getOpenRouterConfig();
   if (!cfg.keyConfigured) {
@@ -157,12 +230,16 @@ export async function testOpenRouterChatbot(): Promise<{
       ok: result.content.toLowerCase().includes("ok"),
       model: result.model,
       replyPreview: result.content.slice(0, 120),
+      usedFallback: result.usedFallback,
+      modelsAttempted: result.modelsAttempted,
     };
   } catch (e) {
     return {
       ok: false,
       model: cfg.model,
       error: e instanceof Error ? e.message : "Test failed",
+      modelsAttempted:
+        e instanceof OpenRouterChatbotError ? e.modelsAttempted : undefined,
     };
   }
 }

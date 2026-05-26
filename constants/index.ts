@@ -29,8 +29,9 @@ export const AI_MODELS = [
     value: DEFAULT_AI_MODEL,
     label: `Env free model (${DEFAULT_AI_MODEL})`,
   },
-  { value: "minimax/minimax-m2.5:free", label: "MiniMax M2.5 (free)" },
+  { value: "minimax/minimax-m2.5:free", label: "MiniMax M2.5 (free, recommended)" },
   { value: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3 (free)" },
+  { value: "qwen/qwen3-4b:free", label: "Qwen3 4B (free)" },
   { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
   { value: "openai/gpt-4o-mini", label: "GPT-4o mini" },
 ] as const;
