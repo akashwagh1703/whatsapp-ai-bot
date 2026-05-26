@@ -142,12 +142,17 @@ export async function resolveAutoReply(
     reasons.push("away enabled but empty message");
   }
 
+  // When AI auto-reply is off (bot disabled or conversation in Human mode),
+  // still send a polite acknowledgement instead of staying silent.
   const envFallback = getWhatsAppFallbackReply();
-  if (envFallback) {
+  const fallbackText =
+    envFallback || "Thanks for reaching out! A team member will follow up shortly.";
+
+  if (msg.content?.trim()) {
     webhookLog("reply_env_fallback", { reason: reasons.join(", ") });
     return {
-      text: envFallback,
-      source: "env_fallback",
+      text: fallbackText,
+      source: envFallback ? "env_fallback" : "fallback",
       isAi: false,
       skippedReason: reasons.join(", ") || undefined,
     };
