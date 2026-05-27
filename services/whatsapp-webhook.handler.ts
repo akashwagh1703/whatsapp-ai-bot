@@ -17,7 +17,7 @@ import {
   validateWhatsAppEnvForWebhook,
 } from "@/lib/whatsapp-env";
 import { resolveWebhookBusinessId } from "@/lib/resolve-webhook-business";
-import { resolveAutoReply } from "@/services/reply-resolver.service";
+import { processMessagePipeline } from "@/services/flow-engine/message-pipeline";
 import {
   bumpAnalytics,
   messageExistsByWaId,
@@ -323,13 +323,21 @@ export async function processWhatsAppWebhook(
         { conversationId: conversation.id, from: msg.from }
       );
 
-      const resolvedReply = await resolveAutoReply(supabase, {
+      const contactId = (conversation as Conversation & { contact_id?: string })
+        .contact_id;
+      const pipeline = await processMessagePipeline(supabase, {
         businessId,
         conversation: conversation as Conversation,
+        contactId: contactId ?? "",
         msg,
         aiSettings,
         automations,
       });
+      const resolvedReply = pipeline.resolvedReply;
+
+      if (pipeline.flowMeta) {
+        webhookLog("flow_reply", pipeline.flowMeta);
+      }
 
       if (resolvedReply.source === "handoff") {
         await supabase

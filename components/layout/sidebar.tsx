@@ -15,6 +15,7 @@ import {
   X,
   Zap,
   FlaskConical,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/constants";
@@ -32,13 +33,14 @@ const ICONS = {
   BarChart3,
   Plug,
   FlaskConical,
+  GitBranch,
   Settings,
 } as const;
 
 const NAV_GROUPS: { label: string; hrefs: string[] }[] = [
   {
     label: "Workspace",
-    hrefs: ["/dashboard", "/inbox", "/ai-bot", "/automations", "/contacts"],
+    hrefs: ["/dashboard", "/inbox", "/ai-bot", "/flows", "/automations", "/contacts"],
   },
   {
     label: "Insights",
