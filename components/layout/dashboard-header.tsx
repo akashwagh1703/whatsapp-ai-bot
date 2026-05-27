@@ -28,6 +28,10 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     title: "AI Bot",
     subtitle: "Train your assistant and tone of voice",
   },
+  "/flows": {
+    title: "Flows",
+    subtitle: "Database-driven conversation workflows",
+  },
   "/automations": {
     title: "Automations",
     subtitle: "Welcome messages, keywords, and routing",

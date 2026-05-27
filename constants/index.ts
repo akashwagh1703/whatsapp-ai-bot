@@ -7,6 +7,7 @@ export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   { href: "/inbox", label: "Inbox", icon: "Inbox" },
   { href: "/ai-bot", label: "AI Bot", icon: "Bot" },
+  { href: "/flows", label: "Flows", icon: "GitBranch" },
   { href: "/automations", label: "Automations", icon: "Zap" },
   { href: "/contacts", label: "Contacts", icon: "Users" },
   { href: "/analytics", label: "Analytics", icon: "BarChart3" },

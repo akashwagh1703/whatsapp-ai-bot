@@ -26,6 +26,7 @@ export type AutoReplySource =
   | "fallback"
   | "handoff"
   | "env_fallback"
+  | "flow"
   | "none";
 
 export interface ResolvedAutoReply {
