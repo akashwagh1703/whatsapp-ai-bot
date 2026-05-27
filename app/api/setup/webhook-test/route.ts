@@ -19,6 +19,7 @@ import {
 import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
 import { createServiceClient } from "@/lib/supabase/server";
 import { interpretWebhookTestResult } from "@/lib/interpret-webhook-test";
+import { buildSimulatedMetaPayload } from "@/lib/meta-webhook-payload";
 
 const schema = z.discriminatedUnion("action", [
   z.object({
@@ -34,37 +35,6 @@ const schema = z.discriminatedUnion("action", [
     sendToLiveEndpoint: z.boolean().optional(),
   }),
 ]);
-
-function buildMetaPayload(from: string, text: string, contactName: string) {
-  const phoneId = getWhatsAppPhoneId() || "0";
-  return {
-    object: "whatsapp_business_account",
-    entry: [
-      {
-        id: "WEBHOOK_TEST",
-        changes: [
-          {
-            field: "messages",
-            value: {
-              messaging_product: "whatsapp",
-              metadata: { phone_number_id: phoneId },
-              contacts: [{ profile: { name: contactName } }],
-              messages: [
-                {
-                  from: from.replace(/\D/g, ""),
-                  id: `wamid.test.${Date.now()}`,
-                  timestamp: String(Math.floor(Date.now() / 1000)),
-                  type: "text",
-                  text: { body: text },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    ],
-  };
-}
 
 export async function GET() {
   const supabase = await createClient();
@@ -140,7 +110,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const payload = buildMetaPayload(
+  const payload = buildSimulatedMetaPayload(
     data.from,
     data.text,
     data.contactName ?? "Webhook Test"
