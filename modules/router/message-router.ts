@@ -3,7 +3,11 @@
  * Detects active sessions, flow triggers, or delegates to legacy handler.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { findFlowByTrigger, getFlowById } from "@/modules/flows/flow-repository";
+import {
+  findFlowByTrigger,
+  getFlowById,
+  getFlowBySlug,
+} from "@/modules/flows/flow-repository";
 import { getActiveSession } from "@/modules/sessions/session-service";
 import type { MessageRouteAction } from "@/types/flow";
 import { webhookLog } from "@/lib/webhook-debug";
@@ -12,6 +16,8 @@ export interface RouteInboundParams {
   businessId: string;
   conversationId: string;
   messageText: string | null;
+  /** First inbound in conversation — may start welcome rule flow. */
+  isFirstMessage?: boolean;
 }
 
 export async function routeInboundMessage(
@@ -34,6 +40,21 @@ export async function routeInboundMessage(
       .from("flow_sessions")
       .update({ status: "cancelled" })
       .eq("id", session.id);
+  }
+
+  if (params.isFirstMessage) {
+    const welcome = await getFlowBySlug(
+      supabase,
+      params.businessId,
+      "rule_welcome"
+    );
+    if (welcome?.enabled) {
+      webhookLog("router_start_flow", {
+        flowSlug: welcome.slug,
+        trigger: "first_message",
+      });
+      return { action: "start_flow", flow: welcome };
+    }
   }
 
   if (text) {

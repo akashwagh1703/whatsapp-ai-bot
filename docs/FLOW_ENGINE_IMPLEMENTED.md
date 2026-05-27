@@ -1,83 +1,48 @@
-# Flow engine — implementation status
+# Flow-based auto-reply architecture
 
-Implements the architecture from `WHATSAPP_BOT_ARCHITECTURE_REFACTOR.md` (Phase 1–3 core).
-
-## Message lifecycle (new)
+## Pipeline
 
 ```
-WhatsApp inbound
-  → POST /api/webhooks/whatsapp
-  → parse & validate payload
-  → save message (Supabase)
-  → Message pipeline
-       → Away mode? (legacy automations)
-       → Message router
-            → Active flow session? → continue flow
-            → Trigger match? → start flow
-            → Else legacy (keywords, welcome, AI, thanks fallback)
-       → Flow executor (dynamic steps)
-  → WhatsApp send + save outbound
+User Message
+  → Meta WhatsApp Cloud API
+  → Webhook (app/api/webhooks/whatsapp/route.ts)
+  → Message Validator (modules/webhook/)
+  → Message Store (modules/messages/)
+  → Message Router (modules/router/)
+  → Session Manager (modules/sessions/)
+  → Auto Reply Engine (services/auto-reply-engine/)
+  → Flow / Rule Engine (services/auto-reply-engine/flow-runner.ts)
+  → Response Generator (services/response-generator.ts)
+  → WhatsApp Send (modules/whatsapp/whatsapp-sender.ts)
+  → User
 ```
 
-## New database tables
+Webhook route responsibilities: verify subscription, validate signature & JSON, parse payload, log raw event, run `processInboundWebhook()`.
 
-Run in Supabase SQL Editor:
-
-`supabase/flow-engine-migration.sql`
-
-- `flows` — triggers + JSON `definition.steps`
-- `flow_sessions` — current step, context, status
-
-## New code layout
+## Key modules
 
 | Path | Role |
 |------|------|
-| `modules/router/message-router.ts` | Routes only — no business text |
-| `modules/sessions/session-service.ts` | Session CRUD + TTL |
-| `modules/flows/flow-repository.ts` | Load/save flows, trigger match |
-| `modules/flows/default-flows.ts` | Welcome flow template |
-| `services/flow-engine/flow-executor.ts` | Step types: message, buttons, list, input, condition, api, end |
-| `services/flow-engine/message-pipeline.ts` | Orchestrates flow vs legacy |
-| `services/flow-engine/flow-seed.service.ts` | Seeds default welcome flow |
+| `modules/webhook/` | Verify, validate, parse |
+| `modules/messages/message-store.ts` | Persist inbound/outbound |
+| `modules/router/message-router.ts` | Active session / triggers / welcome |
+| `modules/sessions/session-manager.ts` | Flow session CRUD |
+| `services/auto-reply-engine/` | Orchestrates flow → AI → fallback |
+| `services/flow-engine/flow-executor.ts` | Step execution |
+| `services/flow-engine/flow-seed.service.ts` | Default + automation rule flows |
+| `services/inbound-message-processor.ts` | End-to-end inbound processing |
 
-## APIs
+## Rules (no hardcoded if/else chains)
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | Service health |
-| `GET /api/flows` | List flows (login) |
-| `POST /api/flows` | Create/update flow JSON |
+Portal **Automations** (away, welcome, keywords) sync into Supabase `flows` rows (`rule_away`, `rule_welcome`, `rule_keyword_*`) on each message. Menu flows use the flow builder / default welcome flow.
+
+Optional **AI** runs only when no flow matches and AI is enabled for the conversation.
+
+## Database
+
+Run `supabase/flow-engine-migration.sql` if `flows` / `flow_sessions` tables are missing.
 
 ## UI
 
-- **Dashboard → Flows** (`/flows`) — view flows and step JSON
-
-## Backward compatibility
-
-- `FLOW_ENGINE_ENABLED=false` → legacy-only (keywords, AI, thanks)
-- Away message still overrides (unchanged)
-- Existing webhook, inbox, AI bot unchanged when no flow matches
-- Default **welcome** flow seeds on first message if table empty
-
-## Env
-
-```env
-FLOW_ENGINE_ENABLED=true
-FLOW_SESSION_TTL_HOURS=24
-```
-
-## Test
-
-1. Run migration SQL  
-2. Send WhatsApp: `hi`  
-3. Expect welcome flow (menu buttons), not only AI/thanks  
-4. `/flows` page shows `welcome` flow definition  
-
-## Not yet implemented (future-ready only)
-
-- Redis queue / delayed jobs
-- Visual flow builder UI
-- Campaign system
-- Full `api` step worker
-
-Architecture is modular so these can plug into `flow-executor` and `message-router` later.
+- `/flows` — list flows
+- `/api/flows` — CRUD API

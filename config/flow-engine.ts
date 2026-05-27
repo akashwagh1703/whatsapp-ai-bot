@@ -1,8 +1,6 @@
-/** Flow engine feature flags (env). */
+/** Flow/rule engine is always enabled. */
 
 export function isFlowEngineEnabled(): boolean {
-  const v = process.env.FLOW_ENGINE_ENABLED?.trim().toLowerCase();
-  if (v === "false" || v === "0") return false;
   return true;
 }
 

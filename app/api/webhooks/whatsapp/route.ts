@@ -2,22 +2,25 @@ import { after, NextResponse } from "next/server";
 import {
   snapshotWebhookPayload,
   summarizeWebhookPayload,
-  verifyWebhook,
-} from "@/services/whatsapp.service";
+} from "@/modules/webhook/message-parser";
 import {
-  getWhatsAppAppSecret,
-  getWhatsAppVerifyToken,
-  isWebhookSignatureEnforced,
+  parseJsonBody,
+  validateWebhookPayload,
+} from "@/modules/webhook/message-validator";
+import {
+  verifyInboundWebhookSignature,
+  verifyMetaSubscription,
+} from "@/modules/webhook/webhook-verifier";
+import {
   shouldAwaitWebhookProcessing,
   validateWhatsAppEnvForWebhook,
 } from "@/lib/whatsapp-env";
-import { verifyMetaWebhookSignature } from "@/lib/meta-webhook-signature";
-import { processWhatsAppWebhook } from "@/services/whatsapp-webhook.handler";
+import { processInboundWebhook } from "@/services/inbound-message-processor";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logWebhookEvent } from "@/lib/webhook-log";
 import { webhookLog, webhookWarn, webhookError } from "@/lib/webhook-debug";
+import type { WebhookProcessResult } from "@/types/webhook-process";
 
-/** AI + WhatsApp send can take 15–30s; Meta allows ~20s before retry. */
 export const maxDuration = 60;
 export const runtime = "nodejs";
 
@@ -29,12 +32,7 @@ export async function GET(request: Request) {
 
   webhookLog("verify_request", { mode, hasChallenge: !!challenge });
 
-  const result = verifyWebhook(
-    mode,
-    token,
-    challenge,
-    getWhatsAppVerifyToken()
-  );
+  const result = verifyMetaSubscription(mode, token, challenge);
   if (result) {
     webhookLog("verify_success");
     return new NextResponse(result, { status: 200 });
@@ -47,7 +45,7 @@ async function runWebhookPipeline(
   body: unknown,
   summary: ReturnType<typeof summarizeWebhookPayload>
 ) {
-  const result = await processWhatsAppWebhook(body);
+  const result = await processInboundWebhook(body);
 
   try {
     const supabase = await createServiceClient();
@@ -87,7 +85,7 @@ async function runWebhookPipeline(
 }
 
 function buildResponse(
-  result: Awaited<ReturnType<typeof processWhatsAppWebhook>>,
+  result: WebhookProcessResult,
   summary: ReturnType<typeof summarizeWebhookPayload>,
   acceptedOnly = false
 ) {
@@ -134,61 +132,65 @@ export async function POST(request: Request) {
   webhookLog("post_hit", { requestId });
 
   const rawBody = await request.text();
-  const appSecret = getWhatsAppAppSecret();
+  const signatureCheck = verifyInboundWebhookSignature(
+    rawBody,
+    request.headers.get("x-hub-signature-256")
+  );
 
-  if (isWebhookSignatureEnforced()) {
-    const signature = request.headers.get("x-hub-signature-256");
-    if (!verifyMetaWebhookSignature(rawBody, signature, appSecret)) {
-      webhookWarn("signature_rejected", { requestId });
-      try {
-        const supabase = await createServiceClient();
-        await logWebhookEvent(supabase, {
-          fields: "signature_rejected",
-          messagesCount: 0,
-          phoneNumberId: null,
-          result: {
-            ok: false,
-            messagesParsed: 0,
-            warning: "invalid_signature",
-            results: [],
-            env: {
-              hasPhoneId: false,
-              hasWaToken: false,
-              hasOpenRouter: false,
-              openRouterModel: "",
-              hasServiceRole: true,
-              aiEnabled: false,
-            },
+  if (!signatureCheck.ok) {
+    webhookWarn("signature_rejected", { requestId });
+    try {
+      const supabase = await createServiceClient();
+      await logWebhookEvent(supabase, {
+        fields: "signature_rejected",
+        messagesCount: 0,
+        phoneNumberId: null,
+        result: {
+          ok: false,
+          messagesParsed: 0,
+          warning: signatureCheck.reason,
+          results: [],
+          env: {
+            hasPhoneId: false,
+            hasWaToken: false,
+            hasOpenRouter: false,
+            openRouterModel: "",
+            hasServiceRole: true,
+            aiEnabled: false,
           },
-        });
-      } catch {
-        // ignore
-      }
-      return NextResponse.json(
-        {
-          error: "Invalid signature",
-          hint: "WHATSAPP_APP_SECRET must match Meta App Secret. Internal webhook tests skip this check.",
         },
-        { status: 401 }
-      );
+      });
+    } catch {
+      // ignore
     }
-    webhookLog("signature_ok", { requestId });
-  } else {
-    webhookWarn("signature_skipped", {
-      requestId,
-      reason: "WHATSAPP_APP_SECRET not set",
-    });
+    return NextResponse.json(
+      {
+        error: "Invalid signature",
+        hint: "WHATSAPP_APP_SECRET must match Meta App Secret. Internal webhook tests skip this check.",
+      },
+      { status: 401 }
+    );
   }
 
   let body: unknown;
   try {
-    body = JSON.parse(rawBody);
+    body = parseJsonBody(rawBody);
   } catch {
     webhookWarn("invalid_json", { requestId });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const summary = summarizeWebhookPayload(body);
+  let summary: ReturnType<typeof summarizeWebhookPayload>;
+  try {
+    ({ summary } = validateWebhookPayload(body));
+  } catch (e) {
+    webhookWarn("invalid_payload", {
+      requestId,
+      error: e instanceof Error ? e.message : "invalid",
+    });
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
   webhookLog("incoming_payload", {
     requestId,
     ...snapshotWebhookPayload(body),

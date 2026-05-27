@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { WebhookProcessResult } from "@/services/whatsapp-webhook.handler";
+import type { WebhookProcessResult } from "@/types/webhook-process";
 
 export async function logWebhookEvent(
   supabase: SupabaseClient,

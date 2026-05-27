@@ -9,7 +9,7 @@ User WhatsApp message
   → Process + send reply, then HTTP 200 (default — reliable on Vercel)
   → parseIncomingWebhook()
   → Save to Inbox (Supabase service role)
-  → resolveAutoReply()  (keyword → away → welcome → handoff → AI → env fallback)
+  → runAutoReplyEngine()  (flow/rules → AI → env fallback)
   → sendWhatsAppMessage()  (Graph API)
 ```
 
@@ -96,4 +96,4 @@ Check Vercel logs for `outgoing_reply_failed` — often token expired or wrong p
 
 ## AI integration
 
-Reply logic lives in `services/reply-resolver.service.ts`. Swap `generateAiReply()` in `services/ai.service.ts` to use OpenAI or another provider without changing the webhook route.
+Reply logic lives in `services/auto-reply-engine/` and DB flows. Swap `generateAiReply()` in `services/ai.service.ts` to use another provider without changing the webhook route.

@@ -30,6 +30,22 @@ export async function listFlowsForBusiness(
   return (data ?? []).map((r) => mapFlow(r as Record<string, unknown>));
 }
 
+export async function getFlowBySlug(
+  supabase: SupabaseClient,
+  businessId: string,
+  slug: string
+): Promise<FlowRecord | null> {
+  const { data, error } = await supabase
+    .from("flows")
+    .select("*")
+    .eq("business_id", businessId)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? mapFlow(data as Record<string, unknown>) : null;
+}
+
 export async function getFlowById(
   supabase: SupabaseClient,
   flowId: string
